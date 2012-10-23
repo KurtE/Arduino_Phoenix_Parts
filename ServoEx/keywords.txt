@@ -1,0 +1,35 @@
+#######################################
+# Syntax Coloring Map MServo
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+ServoEx	KEYWORD1
+ServoGroupMove	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+attach	KEYWORD2
+detach	KEYWORD2
+write	KEYWORD2
+read	KEYWORD2
+attached	KEYWORD2
+writeMicroseconds	KEYWORD2
+readMicroseconds	KEYWORD2
+
+#new members
+move	KEYWORD2
+moving	KEYWORD2
+
+#ServoGroupMove functions
+begin	KEYWORD2
+commit	KEYWORD2
+abort	KEYWORD2
+moving	KEYWORD2
+wait	KEYWORD2
+#######################################
+# Constants (LITERAL1)
+#######################################
