@@ -326,6 +326,9 @@ extern boolean TerminalMonitor(void);
 // SETUP: the main arduino setup function.
 //--------------------------------------------------------------------------
 void setup(){
+#ifdef OPT_SKETCHSETUP
+  SketchSetup();
+#endif  
   g_fShowDebugPrompt = true;
   g_fDebugOutput = false;
 #ifdef DBGSerial    
