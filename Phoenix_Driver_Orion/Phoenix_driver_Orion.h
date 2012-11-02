@@ -45,6 +45,23 @@ void ServoDriver::Init(void) {
   // Orion also handles the servo offsets...
   Orion.SetLipoCutoff(0);	
 
+  // Some of this could/should go external program and may only need to be done once.
+#define SERVOUNITSPERDEGREE 189  
+  byte i;
+  for (i=0; i < 6; i++) {
+	Orion.SetServoDegree(pgm_read_byte(&cCoxaPin[i]), SERVOUNITSPERDEGREE);
+	Orion.SetServoDir(pgm_read_byte(&cCoxaPin[i]), i < 3);
+	Orion.SetServoDegree(pgm_read_byte(&cFemurPin[i]), SERVOUNITSPERDEGREE);
+	Orion.SetServoDir(pgm_read_byte(&cFemurPin[i]), i < 3);
+	Orion.SetServoDegree(pgm_read_byte(&cTibiaPin[i]), SERVOUNITSPERDEGREE);
+	Orion.SetServoDir(pgm_read_byte(&cTibiaPin[i]), i < 3);
+#ifdef c4DOF
+	Orion.SetServoDegree(pgm_read_byte(&cTarsPin[i]), SERVOUNITSPERDEGREE);
+	Orion.SetServoDir(pgm_read_byte(&cTarsPin[i]), i < 3);
+#endif
+  }
+  
+
 #ifdef OPT_GPPLAYER
   _fGPEnabled = false;  // starts off assuming that it is not enabled...
   _fGPActive = false;
@@ -169,49 +186,13 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
 #else
 void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1)
 #endif    
-{        
-	short sCoxaOrion;
-	short sFemurOrion;
-	short sTibiaOrion;
+{   
+	Orion.SetAngle(pgm_read_byte(&cCoxaPin[LegIndex]), sCoxaAngle1);
+	Orion.SetAngle(pgm_read_byte(&cFemurPin[LegIndex]), sFemurAngle1);
+	Orion.SetAngle(pgm_read_byte(&cTibiaPin[LegIndex]), sTibiaAngle1);
 #ifdef c4DOF
-	short sTarsOrion;
+	Orion.SetAngle(pgm_read_byte(&cTarsPin[LegIndex]), sTarsAngle1);
 #endif
-	if (LegIndex < 3) {
-		sCoxaOrion = AngleToHSERVO(-sCoxaAngle1); 
-		sFemurOrion =  AngleToHSERVO(-sFemurAngle1);
-		sTibiaOrion = AngleToHSERVO(-sTibiaAngle1);
-#ifdef c4DOF
-		sTarsOrion =  AngleToHSERVO(-sTarsAngle1);
-#endif
-	}
-	else {
-		sCoxaOrion = AngleToHSERVO(sCoxaAngle1); 
-		sFemurOrion =  AngleToHSERVO(sFemurAngle1);
-		sTibiaOrion = AngleToHSERVO(sTibiaAngle1);
-#ifdef c4DOF
-		sTarsOrion =  AngleToHSERVO(sTarsAngle1);
-#endif
-	}
-	Orion.SetPulse(pgm_read_byte(&cCoxaPin[LegIndex]), sCoxaOrion);
-	Orion.SetPulse(pgm_read_byte(&cFemurPin[LegIndex]), sFemurOrion);
-	Orion.SetPulse(pgm_read_byte(&cTibiaPin[LegIndex]), sTibiaOrion);
-#ifdef c4DOF
-	Orion.SetPulse(pgm_read_byte(&cTarsPin[LegIndex]), sTarsOrion);
-#endif
-
-#ifdef DEBUG_ORION
-    if (g_fDebugOutput) {
-        DBGSerial.print(LegIndex, DEC);
-		DBGSerial.print(" ");
-        DBGSerial.print(sCoxaAngle1, DEC);
-		DBGSerial.print(" ");
-        DBGSerial.print(sFemurAngle1, DEC);
-		DBGSerial.print("=");
-		DBGSerial.print(sFemurOrion, DEC);
-		DBGSerial.print(" ");
-        DBGSerial.println(sTibiaAngle1, DEC);
-	}
-#endif	
 }
 
 
