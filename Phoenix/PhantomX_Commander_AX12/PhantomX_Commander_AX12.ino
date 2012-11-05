@@ -8,7 +8,7 @@
 //   Kåre Halvorsen aka Zenta - Makes everything work correctly!     
 //
 // This version of the Phoenix code was ported over to the Arduino Environement
-// and is specifically configured for the Lynxmotion BotBoarduino 
+// and is specifically configured for the Arbotix Robocontroller board
 //
 //=============================================================================
 //

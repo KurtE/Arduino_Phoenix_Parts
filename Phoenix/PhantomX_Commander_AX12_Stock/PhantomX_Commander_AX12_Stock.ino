@@ -11,6 +11,11 @@
 // and is specifically configured for the Arbotix Robocontroller board
 //
 //=============================================================================
+// Warning:: This configuration does not check voltages, so you should be careful to
+// not allow the lipo to discharge too far. 
+//
+// This configuration should hopefully run on a stock PhantomX, without any
+// of my changes.
 //
 //KNOWN BUGS:
 //    - Lots ;)
@@ -31,7 +36,7 @@
 #include "Hex_CFG.h"
 
 #include <Phoenix.h>
-#include <Phoenix_Input_DIYXbee.h>
+#include <Phoenix_Input_Commander.h>
 #include <Phoenix_Driver_AX12.h>
 #include <Phoenix_Code.h>
 
