@@ -225,7 +225,7 @@ void DIYXBeeController::ControlInput(void)
 
     // OK lets try "0" button for Start. 
     if ((g_diyp.s.wButtons & (1<<0)) && ((g_diypPrev.s.wButtons & (1<<0)) == 0)) { //Start Button (0 on keypad) test
-      if(g_InControlState.fHexOn)  {
+      if(g_InControlState.fRobotOn)  {
         //Turn off
         g_InControlState.BodyPos.x = 0;
         g_InControlState.BodyPos.y = 0;
@@ -240,15 +240,15 @@ void DIYXBeeController::ControlInput(void)
         g_BodyYSift = 0;
         g_InControlState.SelectedLeg = 255;
 
-        g_InControlState.fHexOn = 0;
+        g_InControlState.fRobotOn = 0;
       } 
       else  {
         //Turn on
-        g_InControlState.fHexOn = 1;
+        g_InControlState.fRobotOn = 1;
       }
     } 
 
-    if (g_InControlState.fHexOn) {
+    if (g_InControlState.fRobotOn) {
       if ((g_diyp.s.wButtons & (1<<0xa)) && ((g_diypPrev.s.wButtons & (1<<0xa)) == 0)) { // A button test 
         MSound(1, 50, 2000);
         XBeePlaySounds(1, 50, 2000);
@@ -354,7 +354,7 @@ void DIYXBeeController::ControlInput(void)
 
       //Switch single leg
       if (bXBeeControlMode==SINGLELEGMODE) {
-        if (iNumButton>=1 && iNumButton<=6) {
+        if (iNumButton>=1 && iNumButton<=CNT_LEGS) {
           MSound( 1, 50, 2000);   //Sound P9, [50\4000]
           g_InControlState.SelectedLeg = iNumButton-1;
           g_InControlState.fSLHold=0;
@@ -568,7 +568,7 @@ void DIYXBeeController::ControlInput(void)
   }  
   else  {
     // Not a valid packet - we should go to a turned off state as to not walk into things!
-    if (g_InControlState.fHexOn && (g_diystate.fPacketForced ))  {
+    if (g_InControlState.fRobotOn && (g_diystate.fPacketForced ))  {
       // Turn off
       //   MSound(4, 100,2500, 80, 2250, 100, 2500, 60, 20000); // play it a little different...
 
@@ -585,7 +585,7 @@ void DIYXBeeController::ControlInput(void)
       g_BodyYOffset = 0;
       g_BodyYSift = 0;
       g_InControlState.SelectedLeg = 255;
-      g_InControlState.fHexOn = 0;
+      g_InControlState.fRobotOn = 0;
     }
   }
 

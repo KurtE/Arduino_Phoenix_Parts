@@ -256,7 +256,7 @@ void CommanderInputController::ControlInput(void)
   // See if we have a new command available...
   if(command.ReadMsgs() > 0){
     // If we receive a valid message than turn robot on...
-    g_InControlState.fHexOn = true;
+    g_InControlState.fRobotOn = true;
 
     // [SWITCH MODES]
 
@@ -447,7 +447,7 @@ void CommanderInputController::ControlInput(void)
       //Switch leg for single leg control
       if ((command.buttons & BUT_R1) && !(buttonsPrev & BUT_R1)) {
         MSound (1, 50, 2000);  
-        if (g_InControlState.SelectedLeg<5)
+        if (g_InControlState.SelectedLeg<(CNT_LEGS-1))
           g_InControlState.SelectedLeg = g_InControlState.SelectedLeg+1;
         else
           g_InControlState.SelectedLeg=0;
@@ -478,7 +478,7 @@ void CommanderInputController::ControlInput(void)
   } 
   else {
     // We did not receive a valid packet.  check for a timeout to see if we should turn robot off...
-    if (g_InControlState.fHexOn) {
+    if (g_InControlState.fRobotOn) {
       if ((millis() - g_ulLastMsgTime) > ARBOTIX_TO)
         CommanderTurnRobotOff();
     }
@@ -503,7 +503,7 @@ void CommanderTurnRobotOff(void)
   g_BodyYOffset = 0;
   g_BodyYShift = 0;
   g_InControlState.SelectedLeg = 255;
-  g_InControlState.fHexOn = 0;
+  g_InControlState.fRobotOn = 0;
 }
 
 

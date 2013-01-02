@@ -106,8 +106,8 @@ void InputController::ControlInput(void)
         // Have valid data so make sure the robot is on...
         g_bRCErrorCnt = 0;    // clear out error count...
         
-        if (!g_InControlState.fHexOn) {
-            g_InControlState.fHexOn = 1;
+        if (!g_InControlState.fRobotOn) {
+            g_InControlState.fRobotOn = 1;
             _fSwitchOn = (g_awRCTimes[RCC_SWITCH] > 1500);
         }
 
@@ -193,7 +193,7 @@ void InputController::ControlInput(void)
       // We lost contact with RC... Allow a couple of errors, then turn robot off...
       if (g_bRCErrorCnt < MAXRCERRORCNT)
           g_bRCErrorCnt++;    // Increment the error count and if to many errors, turn off the robot.
-      else if (g_InControlState.fHexOn) {
+      else if (g_InControlState.fRobotOn) {
          //Turn off
           g_InControlState.BodyPos.x = 0;
           g_InControlState.BodyPos.y = 0;
@@ -207,7 +207,7 @@ void InputController::ControlInput(void)
           g_BodyYOffset = 0;
           g_BodyYShift = 0;
           g_InControlState.SelectedLeg = 255;
-          g_InControlState.fHexOn = 0;
+          g_InControlState.fRobotOn = 0;
       }
     }
 }

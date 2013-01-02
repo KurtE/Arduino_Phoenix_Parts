@@ -18,7 +18,7 @@
 #define NUMSERVOSPERLEG 3
 #endif
 
-#define NUMSERVOS (NUMSERVOSPERLEG*6)
+#define NUMSERVOS (NUMSERVOSPERLEG*CNT_LEGS)
 
 #include <ax12.h>
 
@@ -49,6 +49,16 @@ word      g_awGoalAXPos[NUMSERVOS];
 //=============================================================================
 // Global - Local to this file only...
 //=============================================================================
+#ifdef QUADMODE
+static const byte cPinTable[] PROGMEM = {
+  cRRCoxaPin,  cRFCoxaPin,  cLRCoxaPin,  cLFCoxaPin, 
+  cRRFemurPin, cRFFemurPin, cLRFemurPin, cLFFemurPin,
+  cRRTibiaPin, cRFTibiaPin, cLRTibiaPin, cLFTibiaPin
+#ifdef c4DOF
+ ,cRRTarsPin,  cRFTarsPin,  cLRTarsPin,  cLFTarsPin
+#endif
+};
+#else
 static const byte cPinTable[] PROGMEM = {
   cRRCoxaPin,  cRMCoxaPin,  cRFCoxaPin,  cLRCoxaPin,  cLMCoxaPin,  cLFCoxaPin, 
   cRRFemurPin, cRMFemurPin, cRFFemurPin, cLRFemurPin, cLMFemurPin, cLFFemurPin,
@@ -57,10 +67,12 @@ static const byte cPinTable[] PROGMEM = {
     ,cRRTarsPin, cRMTarsPin, cRFTarsPin, cLRTarsPin, cLMTarsPin, cLFTarsPin
 #endif
 };
+#endif
 #define FIRSTCOXAPIN     0
-#define FIRSTFEMURPIN    6
-#define FIRSTTIBIAPIN    12
-#define FIRSTTARSPIN     18
+#define FIRSTFEMURPIN    (CNT_LEGS)
+#define FIRSTTIBIAPIN    (CNT_LEGS*2)
+#define FIRSTTARSPIN     (CNT_LEGS*3)
+
 // Not sure yet if I will use the controller class or not, but...
 BioloidControllerEx bioloid = BioloidControllerEx(1000000);
 boolean g_fServosFree;    // Are the servos in a free state?
@@ -414,7 +426,7 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
 
   //Update Right Legs
   g_InputController.AllowControllerInterrupts(false);    // If on xbee on hserial tell hserial to not processess...
-  if (LegIndex < 3) {
+  if (LegIndex < (CNT_LEGS/2)) {
     wCoxaSSCV = (((long)(-sCoxaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
     wFemurSSCV = (((long)(-sFemurAngle1))* cPwmMult) / cPwmDiv +cPFConst;
     wTibiaSSCV = (((long)(-sTibiaAngle1))* cPwmMult) / cPwmDiv +cPFConst;

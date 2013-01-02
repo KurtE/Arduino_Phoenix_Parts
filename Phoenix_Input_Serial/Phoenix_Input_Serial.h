@@ -228,7 +228,7 @@ void InputController::ControlInput(void)
         // We may have lost the serial communications 
         if (g_wSerialErrorCnt < MAXPS2ERRORCNT)
           g_wSerialErrorCnt++;    // Increment the error count and if to many errors, turn off the robot.
-        else if (g_InControlState.fHexOn)
+        else if (g_InControlState.fRobotOn)
           SerTurnRobotOff();
         return;  // 
       }      
@@ -247,17 +247,17 @@ void InputController::ControlInput(void)
     g_wSerialErrorCnt = 0;    // clear out error count...
 
     if (ButtonPressed(SERB_START)) {// OK lets try "0" button for Start. 
-      if (g_InControlState.fHexOn) {
+      if (g_InControlState.fRobotOn) {
         SerTurnRobotOff();
       } 
       else {
         //Turn on
-        g_InControlState.fHexOn = 1;
+        g_InControlState.fRobotOn = 1;
         fAdjustLegPositions = true;
       }
     }
 
-    if (g_InControlState.fHexOn) {
+    if (g_InControlState.fRobotOn) {
       // [SWITCH MODES]
 
       //Translate mode
@@ -448,7 +448,7 @@ void InputController::ControlInput(void)
         //Switch leg for single leg control
         if (ButtonPressed(SERB_SELECT)) { // Select Button Test
           MSound(1, 50, 2000); 
-          if (g_InControlState.SelectedLeg<5)
+          if (g_InControlState.SelectedLeg< (CNT_LEGS-1))
             g_InControlState.SelectedLeg = g_InControlState.SelectedLeg+1;
           else
             g_InControlState.SelectedLeg=0;
@@ -531,7 +531,7 @@ void InputController::ControlInput(void)
     // We may have lost the PS2... See what we can do to recover...
     if (g_wSerialErrorCnt < MAXPS2ERRORCNT)
       g_wSerialErrorCnt++;    // Increment the error count and if to many errors, turn off the robot.
-    else if (g_InControlState.fHexOn)
+    else if (g_InControlState.fRobotOn)
       SerTurnRobotOff();
   }
 }
@@ -554,7 +554,7 @@ void SerTurnRobotOff(void)
   g_BodyYOffset = 0;
   g_BodyYShift = 0;
   g_InControlState.SelectedLeg = 255;
-  g_InControlState.fHexOn = 0;
+  g_InControlState.fRobotOn = 0;
   AdjustLegPositionsToBodyHeight();    // Put main workings into main program file
 }
 

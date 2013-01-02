@@ -10,6 +10,18 @@
 #include <Orion.h>
 
 //Servo Pin numbers - May be SSC-32 or actual pins on main controller, depending on configuration.
+#ifdef QUADMODE
+const byte cCoxaPin[] PROGMEM = {
+  cRRCoxaPin,  cRFCoxaPin,  cLRCoxaPin,  cLFCoxaPin};
+const byte cFemurPin[] PROGMEM = {
+  cRRFemurPin, cRFFemurPin, cLRFemurPin, cLFFemurPin};
+const byte cTibiaPin[] PROGMEM = {
+  cRRTibiaPin, cRFTibiaPin, cLRTibiaPin, cLFTibiaPin};
+#ifdef c4DOF
+const byte cTarsPin[] PROGMEM = {
+  cRRTarsPin, cRFTarsPin, cLRTarsPin, cLFTarsPin};
+#endif
+#else
 const byte cCoxaPin[] PROGMEM = {
   cRRCoxaPin,  cRMCoxaPin,  cRFCoxaPin,  cLRCoxaPin,  cLMCoxaPin,  cLFCoxaPin};
 const byte cFemurPin[] PROGMEM = {
@@ -20,7 +32,7 @@ const byte cTibiaPin[] PROGMEM = {
 const byte cTarsPin[] PROGMEM = {
   cRRTarsPin, cRMTarsPin, cRFTarsPin, cLRTarsPin, cLMTarsPin, cLFTarsPin};
 #endif
-
+#endif
 
 //=============================================================================
 // Global - Local to this file only...
@@ -48,16 +60,16 @@ void ServoDriver::Init(void) {
   // Some of this could/should go external program and may only need to be done once.
 #define SERVOUNITSPERDEGREE 189  
   byte i;
-  for (i=0; i < 6; i++) {
+  for (i=0; i < CNT_LEGS; i++) {
 	Orion.SetServoDegree(pgm_read_byte(&cCoxaPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cCoxaPin[i]), i < 3);
+	Orion.SetServoDir(pgm_read_byte(&cCoxaPin[i]), i < (CNT_LEGS/2));
 	Orion.SetServoDegree(pgm_read_byte(&cFemurPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cFemurPin[i]), i < 3);
+	Orion.SetServoDir(pgm_read_byte(&cFemurPin[i]), i < (CNT_LEGS/2));
 	Orion.SetServoDegree(pgm_read_byte(&cTibiaPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cTibiaPin[i]), i < 3);
+	Orion.SetServoDir(pgm_read_byte(&cTibiaPin[i]), i < (CNT_LEGS/2));
 #ifdef c4DOF
 	Orion.SetServoDegree(pgm_read_byte(&cTarsPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cTarsPin[i]), i < 3);
+	Orion.SetServoDir(pgm_read_byte(&cTarsPin[i]), i < (CNT_LEGS/2));
 #endif
   }
   
@@ -297,7 +309,11 @@ void MoveServo(byte iServo, short pulse, word time) {
 void FindServoOffsets()
 {
     // not clean but...
+#ifdef QUADMODE
+    static char *apszLegs[] = {"RR","RF", "LR", "LF"};  // Leg Order
+#else
     static char *apszLegs[] = {"RR","RM","RF", "LR", "LM", "LF"};  // Leg Order
+#endif	
     static char *apszLJoints[] = {" Coxa", " Femur", " Tibia", " tArs"}; // which joint on the leg...
     int data;
     short sSN = 0; 			// which servo number
@@ -390,7 +406,7 @@ void FindServoOffsets()
 		Serial.print(sOffset+sOffsetOrion, DEC);
         asOffsets[iServo] = sOffset;
         MoveServo(iServo, sOffset, 500);
-	} else if ((data >= '0') && (data <= '5')) {
+	} else if ((data >= '0') && (data < ( CNT_LEGS +'0'))) {
 		// direct enter of which servo to change
 		fNew = true;
 		sSN = (sSN % NUMSERVOSPERLEG) + (data - '0')*NUMSERVOSPERLEG;

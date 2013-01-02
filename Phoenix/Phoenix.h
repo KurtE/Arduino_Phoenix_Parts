@@ -44,12 +44,11 @@
 #define	c4DEC		10000
 #define	c6DEC		1000000
 
-#define	cRR			0
-#define	cRM			1
-#define	cRF			2
-#define	cLR			3
-#define	cLM			4
-#define	cLF			5
+#ifdef QUADMODE
+enum {cRR=0, cRF, cLR, cLF, CNT_LEGS};
+#else
+enum {cRR=0, cRM, cRF, cLR, cLM, cLF, CNT_LEGS};
+#endif
 
 #define	WTIMERTICSPERMSMUL  	64	// BAP28 is 16mhz need a multiplyer and divider to make the conversion with /8192
 #define WTIMERTICSPERMSDIV  	125 // 
@@ -58,7 +57,7 @@
 
 
 #define NUM_GAITS    6
-#define SmDiv    4  //"Smooth division" factor for the smooth control function, a value of 3 to 5 is most suitable
+#define SmDiv    	 4  //"Smooth division" factor for the smooth control function, a value of 3 to 5 is most suitable
 extern void GaitSelect(void);
 extern short SmoothControl (short CtrlMoveInp, short CtrlMoveOut, byte CtrlDivider);
 
@@ -148,29 +147,29 @@ typedef struct _Coord3D {
 //      requested.
 //==============================================================================
 typedef struct _InControlState {
-  boolean		fHexOn;				//Switch to turn on Phoenix
-  boolean		fPrev_HexOn;			//Previous loop state 
+  boolean		fRobotOn;				//Switch to turn on Phoenix
+  boolean		fPrev_RobotOn;			//Previous loop state 
   //Body position
-  COORD3D        BodyPos;
-     COORD3D        BodyRotOffset;      // Body rotation offset;
+  COORD3D       BodyPos;
+  COORD3D        BodyRotOffset;      // Body rotation offset;
 
   //Body Inverse Kinematics
-  COORD3D        BodyRot1;               // X -Pitch, Y-Rotation, Z-Roll
+  COORD3D       BodyRot1;               // X -Pitch, Y-Rotation, Z-Roll
 
   //[gait]
   byte			GaitType;			//Gait type
 
-    short			LegLiftHeight;		//Current Travel height
-  COORD3D        TravelLength;            // X-Z or Length, Y is rotation.
+    short       LegLiftHeight;		//Current Travel height
+  COORD3D       TravelLength;            // X-Z or Length, Y is rotation.
 
   //[Single Leg Control]
   byte			SelectedLeg;
-  COORD3D        SLLeg;                // 
+  COORD3D       SLLeg;                // 
   boolean		fSLHold;		 	//Single leg control mode
 
 
   //[Balance]
-  boolean        BalanceMode;
+  boolean       BalanceMode;
 
   //[TIMING]
   byte			InputTimeDelay;	//Delay that depends on the input to get the "sneaking" effect
@@ -190,32 +189,32 @@ public:
     word GetBatteryVoltage(void);
 
 #ifdef OPT_GPPLAYER    
-    inline boolean  FIsGPEnabled(void) {return _fGPEnabled;};
+  inline boolean  FIsGPEnabled(void) {return _fGPEnabled;};
   boolean         FIsGPSeqDefined(uint8_t iSeq);
-    inline boolean  FIsGPSeqActive(void) {return _fGPActive;};
-    void            GPStartSeq(uint8_t iSeq);  // 0xff - says to abort...
+  inline boolean  FIsGPSeqActive(void) {return _fGPActive;};
+  void            GPStartSeq(uint8_t iSeq);  // 0xff - says to abort...
   void            GPPlayer(void);
-    uint8_t         GPNumSteps(void);          // How many steps does the current sequence have
-    uint8_t         GPCurStep(void);           // Return which step currently on... 
-    void            GPSetSpeedMultiplyer(short sm) ;      // Set the Speed multiplier (100 is default)
+  uint8_t         GPNumSteps(void);          // How many steps does the current sequence have
+  uint8_t         GPCurStep(void);           // Return which step currently on... 
+  void            GPSetSpeedMultiplyer(short sm) ;      // Set the Speed multiplier (100 is default)
 #endif
-  void BeginServoUpdate(void);    // Start the update 
+  void 			  BeginServoUpdate(void);    // Start the update 
 #ifdef c4DOF
-  void OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1, short sTarsAngle1);
+  void            OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1, short sTarsAngle1);
 #else
-  void OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1);
+  void            OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1);
 #endif    
-  void CommitServoDriver(word wMoveTime);
-  void FreeServos(void);
+  void            CommitServoDriver(word wMoveTime);
+  void            FreeServos(void);
 
     // Allow for background process to happen...
 #ifdef OPT_BACKGROUND_PROCESS
-    void BackgroundProcess(void);
+  void            BackgroundProcess(void);
 #endif    
     
 #ifdef OPT_TERMINAL_MONITOR  
-    void ShowTerminalCommandList(void);
-    boolean ProcessTerminalCommand(byte *psz, byte bLen);
+  void            ShowTerminalCommandList(void);
+  boolean         ProcessTerminalCommand(byte *psz, byte bLen);
 #endif
 
 private:
