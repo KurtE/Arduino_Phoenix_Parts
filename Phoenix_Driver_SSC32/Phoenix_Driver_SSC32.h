@@ -507,7 +507,7 @@ void FindServoOffsets()
 {
   // not clean but...
   byte abSSCServoNum[NUMSERVOSPERLEG*CNT_LEGS];           // array of servos...
-  signed char asOffsets[NUMSERVOSPERLEG*CNT_LEGS];        // we have 18 servos to find/set offsets for...
+  signed short asOffsets[NUMSERVOSPERLEG*CNT_LEGS];        // we have 18 servos to find/set offsets for...
   signed char asOffsetsRead[NUMSERVOSPERLEG*CNT_LEGS];    // array for our read in servos...
 
   static char *apszLegs[] = {
@@ -627,15 +627,15 @@ void FindServoOffsets()
         fNew = true;
         sSN = (sSN % NUMSERVOSPERLEG) + (data - '0')*NUMSERVOSPERLEG;
       } 
-      else if ((data == 'c') && (data == 'C')) {
+      else if ((data == 'c') || (data == 'C')) {
         fNew = true;
         sSN = (sSN / NUMSERVOSPERLEG) * NUMSERVOSPERLEG + 0;
       } 
-      else if ((data == 'c') && (data == 'C')) {
+      else if ((data == 'f') || (data == 'F')) {
         fNew = true;
         sSN = (sSN / NUMSERVOSPERLEG) * NUMSERVOSPERLEG + 1;
       } 
-      else if ((data == 'c') && (data == 'C')) {
+      else if ((data == 't') || (data == 'T')) {
         // direct enter of which servo to change
         fNew = true;
         sSN = (sSN / NUMSERVOSPERLEG) * NUMSERVOSPERLEG + 2;
