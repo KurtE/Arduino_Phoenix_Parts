@@ -30,7 +30,7 @@
 #include <Arduino.h>
 #else
 #endif
-#include <EEPROM.h>
+//#include <EEPROM.h>
 //#include <PS2X_lib.h>
 #include <pins_arduino.h>
 //#include <SoftwareSerial.h>        
@@ -244,30 +244,7 @@ const short cInitPosY[] PROGMEM = {
 const short cInitPosZ[] PROGMEM = {
   cRRInitPosZ, cRFInitPosZ, cLRInitPosZ, cLFInitPosZ};
 
-
-// Quad shift tables
-//                           (RF)                    (LR)                   (LF)                    (RR)
-//        0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-const signed char cX_Axis_Shift[] PROGMEM = {
-			0,0,0,0,
-			0,0,0,0,
-			0,0,0,0,
-			0,0,0,0,0};
-//			 89, 95,115,130,
-//			140,150,153,152,
-//			151,145,130,110,
-//			100, 95, 87, 88, 89};
-//                           (RF)                    (LR)                   (LF)                    (RR)
-//         0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-const signed char cZ_Axis_Shift[] PROGMEM = {
-			0, 0, 0, 0,
-			0, 0, 0, 0, 
-			0, 0, 0, 0,
-			0, 0, 0, 0, 0 };
-//			130,129,132,136,
-//			138,140,136,132,
-//			130,128,134,136,
-//			138,140,136,132,130};
+boolean	g_fQuadDynamicShift;
 #endif
 
 // Define some globals for debug information
@@ -370,7 +347,9 @@ long            TotalTransY;
 long            TotalYBal1;
 long            TotalXBal1;
 long            TotalZBal1;
-
+#ifdef QUADMODE
+byte			TotalTransLegCnt;
+#endif
 //[Single Leg Control]
 byte            PrevSelectedLeg;
 boolean         AllDown;
@@ -580,12 +559,15 @@ void loop(void)
   TotalXBal1 = 0;
   TotalYBal1 = 0;
   TotalZBal1 = 0;
+#ifdef QUADMODE
+  TotalTransLegCnt = 0;
+#endif
+  
   if (g_InControlState.BalanceMode) {
     for (LegIndex = 0; LegIndex < (CNT_LEGS/2); LegIndex++) {    // balance calculations for all Right legs
 
       DoBackgroundProcess();
-      BalCalcOneLeg (-LegPosX[LegIndex]+GaitPosX[LegIndex], 
-      LegPosZ[LegIndex]+GaitPosZ[LegIndex], 
+      BalCalcOneLeg (-LegPosX[LegIndex]+GaitPosX[LegIndex], LegPosZ[LegIndex]+GaitPosZ[LegIndex], 
       (LegPosY[LegIndex]-(short)pgm_read_word(&cInitPosY[LegIndex]))+GaitPosY[LegIndex], LegIndex);
     }
 
@@ -910,7 +892,18 @@ void SingleLegControl(void)
 #define DEFAULT_GAIT_SPEED 60
 #define DEFAULT_SLOW_GAIT 70
 #endif
+
+//cRR=0, cRF, cLR, cLF, CNT_LEGS};
+
+PHOENIXGAIT APG[] = { {16, DEFAULT_GAIT_SPEED, 3, 2, 2, 3, 12, {13, 1, 5, 9}}, 
+					   {6, DEFAULT_GAIT_SPEED, 2, 1, 2, 1, 4, {1, 4, 4, 1}} };
+
 //--------------------------------------------------------------------
+#ifndef QUADMODE
+const byte NUM_GAITS = 6;
+#else
+const byte NUM_GAITS = 2;
+#endif
 void GaitSelect(void)
 {
   //Gait selector
@@ -1022,12 +1015,12 @@ void GaitSelect(void)
     break;
 #else
 	// quad mode
-  default:
+  case 0:
     //Wave 16 steps
+    GaitLegNr[cRF] = 1;
+    GaitLegNr[cLR] = 5;
+    GaitLegNr[cLF] = 13;
     GaitLegNr[cRR] = 9;
-    GaitLegNr[cRF] = 13;
-    GaitLegNr[cLR] = 1;
-    GaitLegNr[cLF] = 5;
     NrLiftedPos = 3;
     FrontDownPos = 2;
     LiftDivFactor = 2;
@@ -1035,6 +1028,25 @@ void GaitSelect(void)
     TLDivFactor = 12;      
     StepsInGait = 16;        
     NomGaitSpeed = DEFAULT_GAIT_SPEED;
+	g_fQuadDynamicShift = true;
+    break;
+  default:
+    //Alternatiting legs
+    //Tripod 6 steps
+    GaitLegNr[cRR] = 1;
+    GaitLegNr[cLF] = 1;
+    
+    GaitLegNr[cLR] = 4;
+    GaitLegNr[cRF] = 4;
+
+    NrLiftedPos = 2;
+    FrontDownPos = 1;
+    LiftDivFactor = 2;
+    HalfLiftHeigth = 1;
+    TLDivFactor = 4;      
+    StepsInGait = 6;        
+    NomGaitSpeed = DEFAULT_GAIT_SPEED;
+	g_fQuadDynamicShift = false;
     break;
 #endif	
   }
@@ -1075,19 +1087,16 @@ void Gait (byte GaitCurrentLegNr)
     g_InControlState.TravelLength.z=0;
     g_InControlState.TravelLength.y=0;//Gait NOT in motion, return to home position
   } 
-#ifdef QUADMODE
-  else {
-    g_InControlState.BodyPos.x = (signed char)pgm_read_byte(&cX_Axis_Shift[GaitStep]);
-    g_InControlState.BodyPos.z = (signed char)pgm_read_byte(&cZ_Axis_Shift[GaitStep]);
-  }
-#endif
 
+
+  // Try to reduce the number of time we look at GaitLegnr and Gaitstep
+  short int LegStep = GaitStep - GaitLegNr[GaitCurrentLegNr];
 
   //Leg middle up position OK
   //Gait in motion	                                                                                  
-
-  if ((TravelRequest && (NrLiftedPos==1 || NrLiftedPos==3 || NrLiftedPos==5) && 
-    GaitStep==GaitLegNr[GaitCurrentLegNr]) || (!TravelRequest && GaitStep==GaitLegNr[GaitCurrentLegNr] && ((abs(GaitPosX[GaitCurrentLegNr])>2) || 
+  // For Lifted pos = 1, 3, 5
+  if ((TravelRequest && (NrLiftedPos&1) && 
+    LegStep==0) || (!TravelRequest && LegStep==0 && ((abs(GaitPosX[GaitCurrentLegNr])>2) || 
     (abs(GaitPosZ[GaitCurrentLegNr])>2) || (abs(GaitRotY[GaitCurrentLegNr])>2)))) { //Up
     GaitPosX[GaitCurrentLegNr] = 0;
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight;
@@ -1095,8 +1104,8 @@ void Gait (byte GaitCurrentLegNr)
     GaitRotY[GaitCurrentLegNr] = 0;
   }
   //Optional Half heigth Rear (2, 3, 5 lifted positions)
-  else if (((NrLiftedPos==2 && GaitStep==GaitLegNr[GaitCurrentLegNr]) || (NrLiftedPos>=3 && 
-    (GaitStep==GaitLegNr[GaitCurrentLegNr]-1 || GaitStep==GaitLegNr[GaitCurrentLegNr]+(StepsInGait-1))))
+  else if (((NrLiftedPos==2 && LegStep==0) || (NrLiftedPos>=3 && 
+    (LegStep==-1 || LegStep==(StepsInGait-1))))
     && TravelRequest) {
     GaitPosX[GaitCurrentLegNr] = -g_InControlState.TravelLength.x/LiftDivFactor;
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+HalfLiftHeigth);     //Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
@@ -1105,7 +1114,7 @@ void Gait (byte GaitCurrentLegNr)
   }    
   // _A_	  
   // Optional Half heigth front (2, 3, 5 lifted positions)
-  else if ((NrLiftedPos>=2) && (GaitStep==GaitLegNr[GaitCurrentLegNr]+1 || GaitStep==GaitLegNr[GaitCurrentLegNr]-(StepsInGait-1)) && TravelRequest) {
+  else if ((NrLiftedPos>=2) && (LegStep==1 || LegStep==-(StepsInGait-1)) && TravelRequest) {
     GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/LiftDivFactor;
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+HalfLiftHeigth); // Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/LiftDivFactor;
@@ -1113,7 +1122,7 @@ void Gait (byte GaitCurrentLegNr)
   }
 
   //Optional Half heigth Rear 5 LiftedPos (5 lifted positions)
-  else if (((NrLiftedPos==5 && (GaitStep==GaitLegNr[GaitCurrentLegNr]-2 ))) && TravelRequest) {
+  else if (((NrLiftedPos==5 && (LegStep==-2 ))) && TravelRequest) {
     GaitPosX[GaitCurrentLegNr] = -g_InControlState.TravelLength.x/2;
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/2;
@@ -1121,7 +1130,7 @@ void Gait (byte GaitCurrentLegNr)
   }  		
 
   //Optional Half heigth Front 5 LiftedPos (5 lifted positions)
-  else if ((NrLiftedPos==5) && (GaitStep==GaitLegNr[GaitCurrentLegNr]+2 || GaitStep==GaitLegNr[GaitCurrentLegNr]-(StepsInGait-2)) && TravelRequest) {
+  else if ((NrLiftedPos==5) && (LegStep==2 || LegStep==-(StepsInGait-2)) && TravelRequest) {
     GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/2;
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
@@ -1129,8 +1138,8 @@ void Gait (byte GaitCurrentLegNr)
   }
   //_B_
   //Leg front down position //bug here?  From _A_ to _B_ there should only be one gaitstep, not 2!
-  //For example, where is the case of GaitStep==GaitLegNr[GaitCurrentLegNr]+2 executed when NRLiftedPos=3?
-  else if ((GaitStep==GaitLegNr[GaitCurrentLegNr]+FrontDownPos || GaitStep==GaitLegNr[GaitCurrentLegNr]-(StepsInGait-FrontDownPos))
+  //For example, where is the case of LegStep==0+2 executed when NRLiftedPos=3?
+  else if ((LegStep==FrontDownPos || LegStep==-(StepsInGait-FrontDownPos))
     && GaitPosY[GaitCurrentLegNr]<0) {
     GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
@@ -1171,10 +1180,18 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
   CPR_X = (short)pgm_read_word(&cOffsetX[BalLegNr]) + PosX;
   CPR_Y = 150 + PosY;        // using the value 150 to lower the centerpoint of rotation 'g_InControlState.BodyPos.y +
 
+#ifndef QUADMODE
   TotalTransY += (long)PosY;
   TotalTransZ += (long)CPR_Z;
   TotalTransX += (long)CPR_X;
-
+#else
+  if (!g_fQuadDynamicShift || (GaitPosY[BalLegNr] >= 0)) {
+	TotalTransY += (long)PosY;
+	TotalTransZ += (long)CPR_Z;
+	TotalTransX += (long)CPR_X;
+	TotalTransLegCnt++;	// need to know how many legs that are on the ground
+}	
+#endif
   lAtan = GetATan2(CPR_X, CPR_Z);
   TotalYBal1 += (lAtan*1800) / 31415;
 
@@ -1189,9 +1206,15 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
 //[BalanceBody]
 void BalanceBody(void)
 {
+#ifndef QUADMODE
   TotalTransZ = TotalTransZ/BalanceDivFactor ;
   TotalTransX = TotalTransX/BalanceDivFactor;
   TotalTransY = TotalTransY/BalanceDivFactor;
+#else
+  TotalTransZ = TotalTransZ/TotalTransLegCnt ;
+  TotalTransX = TotalTransX/TotalTransLegCnt;
+  TotalTransY = TotalTransY/TotalTransLegCnt;
+#endif
 
   if (TotalYBal1 > 0)        //Rotate balance circle by +/- 180 deg
     TotalYBal1 -=  1800;
@@ -1704,8 +1727,9 @@ void MSound(byte cNotes, ...)
 #endif
 
 #ifdef OPT_TERMINAL_MONITOR
+#ifdef OPT_DUMP_EEPROM
 extern void DumpEEPROMCmd(byte *pszCmdLine);
-
+#endif
 //==============================================================================
 // TerminalMonitor - Simple background task checks to see if the user is asking
 //    us to do anything, like update debug levels ore the like.
@@ -1719,8 +1743,9 @@ boolean TerminalMonitor(void)
   if (g_fShowDebugPrompt) {
     DBGSerial.println(F("Arduino Phoenix Monitor"));
     DBGSerial.println(F("D - Toggle debug on or off"));
+#ifdef OPT_DUMP_EEPROM
     DBGSerial.println(F("E - Dump EEPROM"));
-
+#endif
     // Let the Servo driver show it's own set of commands...
     g_ServoDriver.ShowTerminalCommandList();
     g_fShowDebugPrompt = false;
@@ -1753,9 +1778,11 @@ boolean TerminalMonitor(void)
       else
         DBGSerial.println(F("Debug is off"));
     } 
+#ifdef OPT_DUMP_EEPROM
     else if (((szCmdLine[0] == 'e') || (szCmdLine[0] == 'E'))) {
       DumpEEPROMCmd(szCmdLine);
     } 
+#endif
     else
     {
       g_ServoDriver.ProcessTerminalCommand(szCmdLine, ich);
@@ -1769,6 +1796,7 @@ boolean TerminalMonitor(void)
 //--------------------------------------------------------------------
 // DumpEEPROM
 //--------------------------------------------------------------------
+#ifdef OPT_DUMP_EEPROM
 byte g_bEEPromDumpMode = 0;  // assume mode 0 - hex dump
 word g_wEEPromDumpStart = 0;  // where to start dumps from
 byte g_bEEPromDumpCnt = 16;  // how much to dump at a time
@@ -1804,6 +1832,8 @@ void DumpEEPROM() {
   } 
 
 }
+#endif
+
 //--------------------------------------------------------------------
 // GetCmdLineNum - passed pointer to pointer so we can update...
 //--------------------------------------------------------------------
@@ -1841,6 +1871,7 @@ word GetCmdLineNum(byte **ppszCmdLine) {
 
 }
 
+#ifdef OPT_DUMP_EEPROM
 //--------------------------------------------------------------------
 // DumpEEPROMCmd
 //--------------------------------------------------------------------
@@ -1879,6 +1910,7 @@ void DumpEEPROMCmd(byte *pszCmdLine) {
     DumpEEPROM();
     }
     }
+#endif
 #endif
 
 

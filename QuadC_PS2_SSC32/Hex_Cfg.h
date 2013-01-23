@@ -224,24 +224,27 @@
 #define cHexInitXZ	 110 
 #define CHexInitXZCos60  55        // COS(60) = .5
 #define CHexInitXZSin60  95    // sin(60) = .866
+#define CHexInitXZ45    78        // Sin and cos(45) .7071
 #define CHexInitY	60 //30
 
-#if 0
-#define cRRInitPosX     cHexInitXZ      //Start positions of the Right Rear leg
+#if 1
+#define cRRInitPosX     CHexInitXZ45      //Start positions of the Right Rear leg
 #define cRRInitPosY     CHexInitY
-#define cRRInitPosZ     CHexInitXZSin60
+#define cRRInitPosZ     CHexInitXZ45
 
-#define cRFInitPosX     cHexInitXZ      //Start positions of the Right Front leg
+#define cRFInitPosX     CHexInitXZ45      //Start positions of the Right Front leg
 #define cRFInitPosY     CHexInitY
-#define cRFInitPosZ     0
+#define cRFInitPosZ     -CHexInitXZ45
 
-#define cLRInitPosX     cHexInitXZ      //Start positions of the Left Rear leg
+#define cLRInitPosX     CHexInitXZ45      //Start positions of the Left Rear leg
 #define cLRInitPosY     CHexInitY
-#define cLRInitPosZ     0
+#define cLRInitPosZ     CHexInitXZ45
 
-#define cLFInitPosX     cHexInitXZ      //Start positions of the Left Front leg
+#define cLFInitPosX     CHexInitXZ45      //Start positions of the Left Front leg
 #define cLFInitPosY     CHexInitY
-#define cLFInitPosZ     0
+#define cLFInitPosZ     -CHexInitXZ45
+
+
 #else
 #define cRRInitPosX     cHexInitXZ      //Start positions of the Right Rear leg
 #define cRRInitPosY     CHexInitY

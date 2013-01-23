@@ -27,7 +27,7 @@
 #ifndef _PHOENIX_CORE_H_
 #define _PHOENIX_CORE_H_
 #include <stdarg.h>
-#include <EEPROM.h>
+//#include <EEPROM.h>
 
 #ifdef USEXBEE
 #include "diyxbee.h"
@@ -55,8 +55,9 @@ enum {cRR=0, cRM, cRF, cLR, cLM, cLF, CNT_LEGS};
 #define USEINT_TIMERAV
 
 
-
-#define NUM_GAITS    6
+// BUGBUG: to make Dynamic first pass simpl make it a variable.
+//#define NUM_GAITS    6
+extern  const byte 	NUM_GAITS;
 #define SmDiv    	 4  //"Smooth division" factor for the smooth control function, a value of 3 to 5 is most suitable
 extern void GaitSelect(void);
 extern short SmoothControl (short CtrlMoveInp, short CtrlMoveOut, byte CtrlDivider);
@@ -227,6 +228,25 @@ private:
 #endif
 
 } ;   
+
+//==============================================================================
+// Define Gait structure/class - Hopefully allow specific robots to define their
+// own gaits and/or define which of the standard ones they want.
+//==============================================================================
+typedef struct _PhoenixGait {
+	byte            StepsInGait;         //Number of steps in gait
+	short	 		NomGaitSpeed;		//Nominal speed of the gait
+
+	short           NrLiftedPos;         //Number of positions that a single leg is lifted [1-3]
+	byte            FrontDownPos;        //Where the leg should be put down to ground
+	byte            LiftDivFactor;       //Normaly: 2, when NrLiftedPos=5: 4
+	boolean         HalfLiftHeigth;      //If TRUE the outer positions of the ligted legs will be half height    
+
+	short           TLDivFactor;         //Number of steps that a leg is on the floor while walking
+
+	byte            GaitLegNr[CNT_LEGS]; //Init position of the leg
+} PHOENIXGAIT;
+
 
 //==============================================================================
 //==============================================================================
