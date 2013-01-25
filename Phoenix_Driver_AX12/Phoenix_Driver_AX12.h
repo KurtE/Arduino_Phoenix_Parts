@@ -123,7 +123,9 @@ void ServoDriver::Init(void) {
   // First lets get the actual servo positions for all of our servos...
   pinMode(0, OUTPUT);
   g_fServosFree = true;
-  bioloid.poseSize = 18;
+  
+  bioloid.poseSize = NUMSERVOS;
+  
   bioloid.readPose();
 #ifdef cVoltagePin  
   for (byte i=0; i < 8; i++)
@@ -215,7 +217,7 @@ boolean ServoDriver::FIsGPSeqDefined(uint8_t iSeq)
     g_ptransCur = (transition_t *)pgm_read_word(&PoseList[iSeq]);
     // First entry in this table has the count of poses.
     g_eepph.bCntSteps = (byte)pgm_read_word(&(g_ptransCur->time));
-    g_eepph.bCntServos = 18;
+    g_eepph.bCntServos = NUMSERVOS;
 
     return true;  // say that we are valid...
   }
@@ -234,8 +236,8 @@ boolean ServoDriver::FIsGPSeqDefined(uint8_t iSeq)
   // Now Read in the actual header
   EEPROMReadData(g_wSeqHeaderStart, (uint8_t*)&g_eepph, sizeof(g_eepph));
 
-  if ((g_eepph.bSeqNum != iSeq) || (g_eepph.bCntServos != 18) ||
-    ((g_wSeqHeaderStart + sizeof(g_eepph) + (g_eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (g_eepph.bCntPoses * sizeof(word) * 18)) >= GPSEQ_EEPROM_SIZE))
+  if ((g_eepph.bSeqNum != iSeq) || (g_eepph.bCntServos != NUMSERVOS) ||
+    ((g_wSeqHeaderStart + sizeof(g_eepph) + (g_eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (g_eepph.bCntPoses * sizeof(word) * NUMSERVOS)) >= GPSEQ_EEPROM_SIZE))
     return false;
 
   return true;  // Looks like it is valid
@@ -335,8 +337,8 @@ void ServoDriver::GPPlayer(void)
     EEPROMReadData(g_wSeqHeaderStart + sizeof(g_eepph) + (g_bSeqStepNum*sizeof(EEPROMPoseSeq)), (uint8_t*)&eepps, sizeof(eepps));
 
     // Now lets setup to read in the pose information
-    word wEEPromPoseLoc = g_wSeqHeaderStart + sizeof(g_eepph) + (g_eepph.bCntPoses*sizeof(EEPROMPoseSeq)) + (eepps.bPoseNum * sizeof(word) * 18);  // should not hard code 18
-    for (bServo=0; bServo < 18; bServo++) {
+    word wEEPromPoseLoc = g_wSeqHeaderStart + sizeof(g_eepph) + (g_eepph.bCntPoses*sizeof(EEPROMPoseSeq)) + (eepps.bPoseNum * sizeof(word) * NUMSERVOS);  // should not hard code 18
+    for (bServo=0; bServo < NUMSERVOS; bServo++) {
       EEPROMReadData(wEEPromPoseLoc, (uint8_t*)&wPosePos, sizeof(wPosePos));
       if (!fRobotUpsideDownGPStart) {
         bioloid.setNextPoseByIndex(bServo, wPosePos);  // set a servo value by index for next pose
@@ -450,7 +452,7 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
       g_awGoalAXPos[FIRSTFEMURPIN+LegIndex] = wFemurSSCV;    
       g_awGoalAXPos[FIRSTTIBIAPIN+LegIndex] = wTibiaSSCV;    
 #ifdef c4DOF
-      g_awGoalAXTarsPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;    
+      g_awGoalAXPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;   // KevinO change - was it a typo or function change at one time?
 #endif
 #endif
     }
@@ -790,7 +792,7 @@ void EEPROMReadData(word wStart, uint8_t *pv, byte cnt) {
 #define ARB_TEST        25
 
 // Global to this function...
-byte   g_bPoseSize = 18;  // assume poses are for 18 servos.
+byte   g_bPoseSize = NUMSERVOS;  // assume poses are for NUMSERVOS servos.
 
 short g_poses[540];              // enough for 30 steps...
 typedef struct{
@@ -1119,11 +1121,14 @@ boolean PyPoseSaveToEEPROM(byte bSeqNum) {
       break;
     }
     EEPROMReadData(w, (uint8_t*)&eepph, sizeof(eepph));
-    if ((eepph.bSeqNum != iSeq) || (eepph.bCntServos != 18)) {
+    
+    if ((eepph.bSeqNum != iSeq) || (eepph.bCntServos != NUMSERVOS)) {
       fValidHeaders = false;
       break;
+
     }
-    w = wHeaderStart + sizeof(eepph) + (eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (eepph.bCntPoses * sizeof(word) * 18);
+    w = wHeaderStart + sizeof(eepph) + (eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (eepph.bCntPoses * sizeof(word) * NUMSERVOS);
+
     if (w >= GPSEQ_EEPROM_SIZE) { 
       fValidHeaders = false;
       break;
@@ -1133,7 +1138,9 @@ boolean PyPoseSaveToEEPROM(byte bSeqNum) {
 
   // Note: if previous data invalid will try to store data after last valid one...
   eepph.bSeqNum = iSeq;    // save the sequence number here.
-  eepph.bCntServos = 18;  // say that it has 18 steps.
+
+  eepph.bCntServos = NUMSERVOS  // say that it has our number of servos
+
   eepph.bCntPoses = 0;
   for (eepph.bCntSteps = 0; g_sequence[eepph.bCntSteps].pose != 0xff; eepph.bCntSteps++) {
     if (g_sequence[eepph.bCntSteps].pose > eepph.bCntPoses)
@@ -1142,7 +1149,7 @@ boolean PyPoseSaveToEEPROM(byte bSeqNum) {
   eepph.bCntPoses++;  // Cnt not index...
 
   // Make sure it will fit!  
-  if ((wHeaderStart + sizeof(eepph) + (eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (eepph.bCntPoses * sizeof(word) * 18)) >= GPSEQ_EEPROM_SIZE)
+  if ((wHeaderStart + sizeof(eepph) + (eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (eepph.bCntPoses * sizeof(word) * NUMSERVOS)) >= GPSEQ_EEPROM_SIZE)
     return false;
 
   // Now lets start writing out the data...
@@ -1167,7 +1174,7 @@ boolean PyPoseSaveToEEPROM(byte bSeqNum) {
   }
 
   // Last lets write out the Pose data...
-  EEPROMWriteData(wHeaderStart, (uint8_t*)g_poses, eepph.bCntPoses * 18 * sizeof(g_poses[0]));
+  EEPROMWriteData(wHeaderStart, (uint8_t*)g_poses, eepph.bCntPoses * NUMSERVOS * sizeof(g_poses[0]));
 
   return true;
 

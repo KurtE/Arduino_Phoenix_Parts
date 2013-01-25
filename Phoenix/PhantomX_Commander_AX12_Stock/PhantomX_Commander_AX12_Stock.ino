@@ -31,9 +31,9 @@
 #endif
 #include <EEPROM.h>
 #include <ax12.h>
-#include <BioloidEX.h>
+#include <BioloidEx.h>
 
-#include "Hex_CFG.h"
+#include "Hex_Cfg.h"
 
 #include <Phoenix.h>
 #include <Phoenix_Input_Commander.h>
