@@ -43,6 +43,13 @@
 #define DEBUG
 #endif
 
+#define DEBUG_STEP
+#ifdef DEBUG_STEP
+#define DEBUG_BUTTON_A 2
+#define DEBUG_BUTTON_B 3
+boolean g_fDebugStep = false;
+#endif
+
 //--------------------------------------------------------------------
 //[TABLES]
 //ArcCosinus Table
@@ -428,6 +435,11 @@ void setup(){
   // debug stuff
   delay(10);
 
+#ifdef DEBUG_STEP
+  pinMode(DEBUG_BUTTON_A, INPUT_PULLUP);	// assuming PU
+  pinMode(DEBUG_BUTTON_B, INPUT_PULLUP);
+#endif
+
 
   //Turning off all the leds
   LedA = 0;
@@ -499,6 +511,16 @@ void setup(){
 
 void loop(void)
 {
+#ifdef DEBUG_STEP
+  if (!digitalRead(DEBUG_BUTTON_A)) {
+    g_fDebugStep = !g_fDebugStep;
+	delay(5);
+	while (!digitalRead(DEBUG_BUTTON_A)) {
+		delay(5);
+	}
+    MSound(1, 100, g_fDebugStep? 3000 : 2000);
+  }
+#endif
   //Start time
   lTimerStart = millis(); 
   DoBackgroundProcess();
@@ -682,7 +704,7 @@ void loop(void)
       } 
       while (millis() < lTimeWaitEnd);
       DebugWrite(A1, LOW);
-#ifdef DEBUG
+#ifdef DEBUG_X
       if (g_fDebugOutput) {
 
         DBGSerial.print("BRX:");
@@ -699,7 +721,7 @@ void loop(void)
       }
 #endif
     }
-#ifdef DEBUG
+#ifdef DEBUG_X
     if (g_fDebugOutput) {
 
 
@@ -713,6 +735,17 @@ void loop(void)
     // Only do commit if we are actually doing something...
     DebugToggle(A2);
     g_ServoDriver.CommitServoDriver(ServoMoveTime);
+
+#ifdef DEBUG_STEP
+    if (g_fDebugStep) {	
+      while (digitalRead(DEBUG_BUTTON_B)) {  // wait until button is pressed
+	  	delay(5);
+	  }
+      while (!digitalRead(DEBUG_BUTTON_B)) {  // wait until button is released
+		delay(5);
+	  }
+    }
+#endif
 
   } 
   else {
@@ -1016,17 +1049,17 @@ void GaitSelect(void)
 #else
 	// quad mode
   case 0:
-    //Wave 16 steps
-    GaitLegNr[cRF] = 1;
-    GaitLegNr[cLR] = 5;
-    GaitLegNr[cLF] = 13;
-    GaitLegNr[cRR] = 9;
+    //Wave 24 Step
+    GaitLegNr[cRR] = 3;
+    GaitLegNr[cRF] = 9;
+    GaitLegNr[cLR] = 15;
+    GaitLegNr[cLF] = 21;
     NrLiftedPos = 3;
     FrontDownPos = 2;
     LiftDivFactor = 2;
     HalfLiftHeigth = 3;
-    TLDivFactor = 12;      
-    StepsInGait = 16;        
+    TLDivFactor = 21;      
+    StepsInGait = 24;        
     NomGaitSpeed = DEFAULT_GAIT_SPEED;
 	g_fQuadDynamicShift = true;
     break;
@@ -1184,14 +1217,7 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
   TotalTransY += (long)PosY;
   TotalTransZ += (long)CPR_Z;
   TotalTransX += (long)CPR_X;
-#else
-  if (!g_fQuadDynamicShift || (GaitPosY[BalLegNr] >= 0)) {
-	TotalTransY += (long)PosY;
-	TotalTransZ += (long)CPR_Z;
-	TotalTransX += (long)CPR_X;
-	TotalTransLegCnt++;	// need to know how many legs that are on the ground
-}	
-#endif
+
   lAtan = GetATan2(CPR_X, CPR_Z);
   TotalYBal1 += (lAtan*1800) / 31415;
 
@@ -1200,6 +1226,27 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
 
   lAtan = GetATan2 (CPR_Z, CPR_Y);
   TotalXBal1 += ((lAtan*1800) / 31415) - 900; //Rotate balance circle 90 deg
+
+#else
+  if (!g_fQuadDynamicShift || (GaitPosY[BalLegNr] >= 0)) {
+	TotalTransY += (long)PosY;
+	TotalTransZ += (long)CPR_Z;
+	TotalTransX += (long)CPR_X;
+	TotalTransLegCnt++;	// need to know how many legs that are on the ground
+  }
+#ifdef DEBUG
+  if (g_fDebugOutput) {
+	DBGSerial.print(BalLegNr, DEC);
+	DBGSerial.print(":");
+	DBGSerial.print(CPR_X, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(PosY, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(CPR_Z, DEC);
+	DBGSerial.print(" ");
+  }
+#endif
+#endif  
 
 }  
 //--------------------------------------------------------------------
@@ -1210,11 +1257,6 @@ void BalanceBody(void)
   TotalTransZ = TotalTransZ/BalanceDivFactor ;
   TotalTransX = TotalTransX/BalanceDivFactor;
   TotalTransY = TotalTransY/BalanceDivFactor;
-#else
-  TotalTransZ = TotalTransZ/TotalTransLegCnt ;
-  TotalTransX = TotalTransX/TotalTransLegCnt;
-  TotalTransY = TotalTransY/TotalTransLegCnt;
-#endif
 
   if (TotalYBal1 > 0)        //Rotate balance circle by +/- 180 deg
     TotalYBal1 -=  1800;
@@ -1231,6 +1273,31 @@ void BalanceBody(void)
   TotalYBal1 = -TotalYBal1/BalanceDivFactor;
   TotalXBal1 = -TotalXBal1/BalanceDivFactor;
   TotalZBal1 = TotalZBal1/BalanceDivFactor;
+
+#else
+  TotalTransZ = TotalTransZ/TotalTransLegCnt ;
+  TotalTransX = TotalTransX/TotalTransLegCnt;
+  TotalTransY = TotalTransY/TotalTransLegCnt;
+#ifdef DEBUG
+  if (g_fDebugOutput) {
+	DBGSerial.print(TotalTransLegCnt, DEC);
+	DBGSerial.print("=");
+	DBGSerial.print(TotalTransX, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(TotalTransY, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(TotalTransZ, DEC);
+	DBGSerial.print("=");
+	DBGSerial.println(GaitStep, DEC);
+	
+  } 
+#endif
+
+  // Try zeroing these out for now...
+  TotalYBal1 = 0;
+  TotalXBal1 = 0;
+  TotalZBal1 = 0;
+#endif
 }
 
 
