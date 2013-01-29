@@ -43,12 +43,6 @@
 #define DEBUG
 #endif
 
-#define DEBUG_STEP
-#ifdef DEBUG_STEP
-#define DEBUG_BUTTON_A 2
-#define DEBUG_BUTTON_B 3
-boolean g_fDebugStep = false;
-#endif
 
 //--------------------------------------------------------------------
 //[TABLES]
@@ -356,6 +350,7 @@ long            TotalXBal1;
 long            TotalZBal1;
 #ifdef QUADMODE
 byte			TotalTransLegCnt;
+short			BalancePercentage = 100;		// what percentage of the balance should we use default 100 (debug sort-of)
 #endif
 //[Single Leg Control]
 byte            PrevSelectedLeg;
@@ -374,7 +369,6 @@ boolean         HalfLiftHeigth;      //If TRUE the outer positions of the ligted
 boolean         TravelRequest;        //Temp to check if the gait is in motion
 byte            StepsInGait;         //Number of steps in gait
 
-boolean         LastLeg;             //TRUE when the current leg is the last leg of the sequence
 byte            GaitStep;            //Actual Gait step
 
 byte            GaitLegNr[CNT_LEGS];        //Init position of the leg
@@ -386,6 +380,8 @@ long            GaitPosY[CNT_LEGS];         //Array containing Relative Y positi
 long            GaitPosZ[CNT_LEGS];         //Array containing Relative Z position corresponding to the Gait
 long            GaitRotY[CNT_LEGS];         //Array containing Relative Y rotation corresponding to the Gait
 
+byte			GaitBalPercent[CNT_LEGS];	// Array containg how much each legs position should weigh in the Dynamic Balance...
+long			TotGaitBalPercent;			// Our total gait percentage...
 
 boolean         fWalking;            //  True if the robot are walking
 byte            bExtraCycle;          // Forcing some extra timed cycles for avoiding "end of gait bug"
@@ -434,11 +430,6 @@ void setup(){
   //    DBGSerial.write("Program Start\n\r");
   // debug stuff
   delay(10);
-
-#ifdef DEBUG_STEP
-  pinMode(DEBUG_BUTTON_A, INPUT_PULLUP);	// assuming PU
-  pinMode(DEBUG_BUTTON_B, INPUT_PULLUP);
-#endif
 
 
   //Turning off all the leds
@@ -511,16 +502,6 @@ void setup(){
 
 void loop(void)
 {
-#ifdef DEBUG_STEP
-  if (!digitalRead(DEBUG_BUTTON_A)) {
-    g_fDebugStep = !g_fDebugStep;
-	delay(5);
-	while (!digitalRead(DEBUG_BUTTON_A)) {
-		delay(5);
-	}
-    MSound(1, 100, g_fDebugStep? 3000 : 2000);
-  }
-#endif
   //Start time
   lTimerStart = millis(); 
   DoBackgroundProcess();
@@ -583,9 +564,26 @@ void loop(void)
   TotalZBal1 = 0;
 #ifdef QUADMODE
   TotalTransLegCnt = 0;
+  TotGaitBalPercent = 0;
 #endif
   
   if (g_InControlState.BalanceMode) {
+#ifdef DEBUG
+      if (g_fDebugOutput) {
+  TravelRequest = (abs(g_InControlState.TravelLength.x)>cTravelDeadZone) || (abs(g_InControlState.TravelLength.z)>cTravelDeadZone) 
+    || (abs(g_InControlState.TravelLength.y)>cTravelDeadZone) || (g_InControlState.ForceGaitStepCnt != 0) || fWalking;
+
+        DBGSerial.print("T("); 
+		DBGSerial.print(fWalking, DEC);
+		DBGSerial.print(" ");
+        DBGSerial.print(g_InControlState.TravelLength.x,DEC); 
+        DBGSerial.print(","); 
+        DBGSerial.print(g_InControlState.TravelLength.y,DEC); 
+        DBGSerial.print(","); 
+        DBGSerial.print(g_InControlState.TravelLength.z,DEC); 
+        DBGSerial.print(")"); 
+      }
+#endif
     for (LegIndex = 0; LegIndex < (CNT_LEGS/2); LegIndex++) {    // balance calculations for all Right legs
 
       DoBackgroundProcess();
@@ -736,16 +734,6 @@ void loop(void)
     DebugToggle(A2);
     g_ServoDriver.CommitServoDriver(ServoMoveTime);
 
-#ifdef DEBUG_STEP
-    if (g_fDebugStep) {	
-      while (digitalRead(DEBUG_BUTTON_B)) {  // wait until button is pressed
-	  	delay(5);
-	  }
-      while (!digitalRead(DEBUG_BUTTON_B)) {  // wait until button is released
-		delay(5);
-	  }
-    }
-#endif
 
   } 
   else {
@@ -1093,14 +1081,23 @@ void GaitSeq(void)
   TravelRequest = (abs(g_InControlState.TravelLength.x)>cTravelDeadZone) || (abs(g_InControlState.TravelLength.z)>cTravelDeadZone) 
     || (abs(g_InControlState.TravelLength.y)>cTravelDeadZone) || (g_InControlState.ForceGaitStepCnt != 0) || fWalking;
 
-  //Calculate Gait sequence
-  LastLeg = 0;
-  for (LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++) { // for all legs
-    if (LegIndex == (CNT_LEGS-1)) // last leg
-      LastLeg = 1 ;
+  //Clear values under the cTravelDeadZone
+  if (!TravelRequest) {    
+    g_InControlState.TravelLength.x=0;
+    g_InControlState.TravelLength.z=0;
+    g_InControlState.TravelLength.y=0;//Gait NOT in motion, return to home position
+  } 
 
+
+  //Calculate Gait sequence
+  for (LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++) { // for all legs
     Gait(LegIndex);
   }    // next leg
+
+  //Advance to the next step
+  GaitStep++;
+  if (GaitStep>StepsInGait)
+    GaitStep = 1;
 
   // If we have a force count decrement it now... 
   if (g_InControlState.ForceGaitStepCnt)
@@ -1112,15 +1109,6 @@ void GaitSeq(void)
 //[GAIT]
 void Gait (byte GaitCurrentLegNr)
 {
-
-
-  //Clear values under the cTravelDeadZone
-  if (!TravelRequest) {    
-    g_InControlState.TravelLength.x=0;
-    g_InControlState.TravelLength.z=0;
-    g_InControlState.TravelLength.y=0;//Gait NOT in motion, return to home position
-  } 
-
 
   // Try to reduce the number of time we look at GaitLegnr and Gaitstep
   short int LegStep = GaitStep - GaitLegNr[GaitCurrentLegNr];
@@ -1135,6 +1123,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight;
     GaitPosZ[GaitCurrentLegNr] = 0;
     GaitRotY[GaitCurrentLegNr] = 0;
+	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
   }
   //Optional Half heigth Rear (2, 3, 5 lifted positions)
   else if (((NrLiftedPos==2 && LegStep==0) || (NrLiftedPos>=3 && 
@@ -1144,6 +1133,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+HalfLiftHeigth);     //Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/LiftDivFactor;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/LiftDivFactor;
+	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
   }    
   // _A_	  
   // Optional Half heigth front (2, 3, 5 lifted positions)
@@ -1152,6 +1142,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+HalfLiftHeigth); // Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/LiftDivFactor;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/LiftDivFactor;
+	GaitBalPercent[GaitCurrentLegNr] = 25;	// Leg part way through move, cycling toward down...
   }
 
   //Optional Half heigth Rear 5 LiftedPos (5 lifted positions)
@@ -1160,6 +1151,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/2;
+	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg starting up...
   }  		
 
   //Optional Half heigth Front 5 LiftedPos (5 lifted positions)
@@ -1168,6 +1160,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;
+	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg part way through move, cycling toward down...
   }
   //_B_
   //Leg front down position //bug here?  From _A_ to _B_ there should only be one gaitstep, not 2!
@@ -1178,7 +1171,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;      	
     GaitPosY[GaitCurrentLegNr] = 0;	
-
+	GaitBalPercent[GaitCurrentLegNr] = TravelRequest?50 : 100;	// Leg moving to down position...
   }
 
   //Move body forward      
@@ -1187,15 +1180,15 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = 0; 
     GaitPosZ[GaitCurrentLegNr] = GaitPosZ[GaitCurrentLegNr] - (g_InControlState.TravelLength.z/TLDivFactor);
     GaitRotY[GaitCurrentLegNr] = GaitRotY[GaitCurrentLegNr] - (g_InControlState.TravelLength.y/TLDivFactor);
+	GaitBalPercent[GaitCurrentLegNr] = 100;	// Leg is down and not moving...
+	if (TravelRequest) {  // BUGBUG::: should be modified to handle leglift of 5...
+		if ((LegStep == -2) || (LegStep==(StepsInGait-2)))
+			GaitBalPercent[GaitCurrentLegNr] = 50;		// Leg is Just about to start lifting
+		else if ((LegStep == -3) || (LegStep==(StepsInGait-3)))
+			GaitBalPercent[GaitCurrentLegNr] = 75;		// Leg is Just about to start lifting
+	}
   }
 
-
-  //Advance to the next step
-  if (LastLeg)  {  //The last leg in this step
-    GaitStep++;
-    if (GaitStep>StepsInGait)
-      GaitStep = 1;
-  }
 }  
 
 
@@ -1228,11 +1221,12 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
   TotalXBal1 += ((lAtan*1800) / 31415) - 900; //Rotate balance circle 90 deg
 
 #else
-  if (!g_fQuadDynamicShift || (GaitPosY[BalLegNr] >= 0)) {
-	TotalTransY += (long)PosY;
-	TotalTransZ += (long)CPR_Z;
-	TotalTransX += (long)CPR_X;
+  if (g_fQuadDynamicShift/* || (GaitPosY[BalLegNr] >= 0)*/) {
+	TotalTransY += (long)(PosY * GaitBalPercent[BalLegNr]);
+	TotalTransZ += (long)(CPR_Z * GaitBalPercent[BalLegNr]);
+	TotalTransX += (long)(CPR_X * GaitBalPercent[BalLegNr]);
 	TotalTransLegCnt++;	// need to know how many legs that are on the ground
+	TotGaitBalPercent += GaitBalPercent[BalLegNr];
   }
 #ifdef DEBUG
   if (g_fDebugOutput) {
@@ -1243,6 +1237,8 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
 	DBGSerial.print(PosY, DEC);
 	DBGSerial.print(" ");
 	DBGSerial.print(CPR_Z, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(GaitBalPercent[BalLegNr], DEC);
 	DBGSerial.print(" ");
   }
 #endif
@@ -1275,12 +1271,14 @@ void BalanceBody(void)
   TotalZBal1 = TotalZBal1/BalanceDivFactor;
 
 #else
-  TotalTransZ = TotalTransZ/TotalTransLegCnt ;
-  TotalTransX = TotalTransX/TotalTransLegCnt;
-  TotalTransY = TotalTransY/TotalTransLegCnt;
+  if (TotGaitBalPercent) {
+    TotalTransZ = (TotalTransZ*BalancePercentage)/(TotGaitBalPercent*100);
+    TotalTransX = (TotalTransX*BalancePercentage)/(TotGaitBalPercent*100);
+    TotalTransY = (TotalTransY*BalancePercentage)/(TotGaitBalPercent*100);
+  }
 #ifdef DEBUG
   if (g_fDebugOutput) {
-	DBGSerial.print(TotalTransLegCnt, DEC);
+	DBGSerial.print(TotGaitBalPercent, DEC);
 	DBGSerial.print("=");
 	DBGSerial.print(TotalTransX, DEC);
 	DBGSerial.print(" ");
@@ -1797,6 +1795,9 @@ void MSound(byte cNotes, ...)
 #ifdef OPT_DUMP_EEPROM
 extern void DumpEEPROMCmd(byte *pszCmdLine);
 #endif
+#ifdef QUADMODE
+extern void UpdateBalancePercent(byte *pszCmdLine);
+#endif
 //==============================================================================
 // TerminalMonitor - Simple background task checks to see if the user is asking
 //    us to do anything, like update debug levels ore the like.
@@ -1812,6 +1813,9 @@ boolean TerminalMonitor(void)
     DBGSerial.println(F("D - Toggle debug on or off"));
 #ifdef OPT_DUMP_EEPROM
     DBGSerial.println(F("E - Dump EEPROM"));
+#endif
+#ifdef QUADMODE
+	DBGSerial.println(F("B <percent>"));
 #endif
     // Let the Servo driver show it's own set of commands...
     g_ServoDriver.ShowTerminalCommandList();
@@ -1850,6 +1854,11 @@ boolean TerminalMonitor(void)
       DumpEEPROMCmd(szCmdLine);
     } 
 #endif
+#ifdef QUADMODE
+    else if (((szCmdLine[0] == 'b') || (szCmdLine[0] == 'B'))) {
+      UpdateBalancePercent(szCmdLine);
+    } 
+#endif
     else
     {
       g_ServoDriver.ProcessTerminalCommand(szCmdLine, ich);
@@ -1859,6 +1868,7 @@ boolean TerminalMonitor(void)
   }
   return false;
 }
+
 
 //--------------------------------------------------------------------
 // DumpEEPROM
@@ -1967,17 +1977,36 @@ void DumpEEPROMCmd(byte *pszCmdLine) {
         pszCmdLine = psz;  // remember how far we got...
 
         EEPROM.write(g_wEEPromDumpStart++, w & 0xff);
+      }
     }
-  }
     else {
       if (*pszCmdLine == ' ') { // A blank assume we have a count...
         g_bEEPromDumpCnt = GetCmdLineNum(&pszCmdLine);
       }
-      }
+    }
     DumpEEPROM();
-    }
-    }
+  }
+}
 #endif
+//--------------------------------------------------------------------
+// UpdateBalancePercent
+//--------------------------------------------------------------------
+#ifdef QUADMODE
+void UpdateBalancePercent(byte *pszCmdLine) {
+  // first byte can be H for hex or W for words...
+  if (!*++pszCmdLine) {  // Need to get past the command letter first...
+	DBGSerial.print("Balance Perent: ");
+	DBGSerial.println(BalancePercentage, DEC);
+  }
+  else {
+	//Argument should be New percentage
+    BalancePercentage = GetCmdLineNum(&pszCmdLine);
+  }
+}
+#endif
+
+
+
 #endif
 
 
