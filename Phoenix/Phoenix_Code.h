@@ -1077,17 +1077,33 @@ void GaitSelect(void)
 //[GAIT Sequence]
 void GaitSeq(void)
 {
-  //Check if the Gait is in motion
-  TravelRequest = (abs(g_InControlState.TravelLength.x)>cTravelDeadZone) || (abs(g_InControlState.TravelLength.z)>cTravelDeadZone) 
-    || (abs(g_InControlState.TravelLength.y)>cTravelDeadZone) || (g_InControlState.ForceGaitStepCnt != 0) || fWalking;
+  //Check if the Gait is in motion - If not if we are going to start a motion try to align our Gaitstep to start with a good foot
+  // for the direction we are about to go...
+  
+  if (fWalking || (g_InControlState.ForceGaitStepCnt != 0))
+	TravelRequest = true;	// Is walking or was walking...
+  else {
+	TravelRequest = (abs(g_InControlState.TravelLength.x)>cTravelDeadZone) 
+		|| (abs(g_InControlState.TravelLength.z)>cTravelDeadZone) 
+		|| (abs(g_InControlState.TravelLength.y)>cTravelDeadZone) ;
 
-  //Clear values under the cTravelDeadZone
-  if (!TravelRequest) {    
-    g_InControlState.TravelLength.x=0;
-    g_InControlState.TravelLength.z=0;
-    g_InControlState.TravelLength.y=0;//Gait NOT in motion, return to home position
-  } 
-
+    if (TravelRequest) {
+#ifdef QUADCODE
+		// just start walking - Try to guess a good foot to start off on...
+		if (g_InControlState.TravelLength.z < 0) 
+			GaitStep = ((g_InControlState.TravelLength.X < 0)? GaitLegNr[cLR] : GaitLegNr[cRR]);
+		else 
+			GaitStep = ((g_InControlState.TravelLength.X < 0)? GaitLegNr[cLF] : GaitLegNr[cRF]);
+		// And lets backup a few Gaitsteps before this to allow it to start the up swing... 
+		GaitStep = ((GaitStep > FrontDownPos)? (GaitStep - FrontDownPos) : (GaitStep + StepsInGait - FrontDownPos);
+#endif		
+    }
+    else {    //Clear values under the cTravelDeadZone
+      g_InControlState.TravelLength.x=0;
+      g_InControlState.TravelLength.z=0;
+      g_InControlState.TravelLength.y=0;//Gait NOT in motion, return to home position
+    } 
+  }
 
   //Calculate Gait sequence
   for (LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++) { // for all legs
@@ -1797,6 +1813,7 @@ extern void DumpEEPROMCmd(byte *pszCmdLine);
 #endif
 #ifdef QUADMODE
 extern void UpdateBalancePercent(byte *pszCmdLine);
+extern void UpdateGaitCmd(byte *pszCmdLine);
 #endif
 //==============================================================================
 // TerminalMonitor - Simple background task checks to see if the user is asking
@@ -1816,6 +1833,7 @@ boolean TerminalMonitor(void)
 #endif
 #ifdef QUADMODE
 	DBGSerial.println(F("B <percent>"));
+	DBGSerial.println(F("G ST NL RR RF LR LF"));
 #endif
     // Let the Servo driver show it's own set of commands...
     g_ServoDriver.ShowTerminalCommandList();
@@ -1857,6 +1875,9 @@ boolean TerminalMonitor(void)
 #ifdef QUADMODE
     else if (((szCmdLine[0] == 'b') || (szCmdLine[0] == 'B'))) {
       UpdateBalancePercent(szCmdLine);
+    } 
+    else if (((szCmdLine[0] == 'g') || (szCmdLine[0] == 'G'))) {
+      UpdateGaitCmd(szCmdLine);
     } 
 #endif
     else
@@ -1993,7 +2014,6 @@ void DumpEEPROMCmd(byte *pszCmdLine) {
 //--------------------------------------------------------------------
 #ifdef QUADMODE
 void UpdateBalancePercent(byte *pszCmdLine) {
-  // first byte can be H for hex or W for words...
   if (!*++pszCmdLine) {  // Need to get past the command letter first...
 	DBGSerial.print("Balance Perent: ");
 	DBGSerial.println(BalancePercentage, DEC);
@@ -2001,6 +2021,65 @@ void UpdateBalancePercent(byte *pszCmdLine) {
   else {
 	//Argument should be New percentage
     BalancePercentage = GetCmdLineNum(&pszCmdLine);
+  }
+}
+
+
+//--------------------------------------------------------------------
+// UpdateGaitCmd
+//--------------------------------------------------------------------
+void UpdateGaitCmd(byte *pszCmdLine) {
+  // first byte can be H for hex or W for words...
+  if (!*++pszCmdLine) {  // Need to get past the command letter first...
+	DBGSerial.print("St: ");
+	DBGSerial.print(StepsInGait, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(NrLiftedPos, DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(GaitLegNr[cRR], DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(GaitLegNr[cRF], DEC);
+	DBGSerial.print(" ");
+	DBGSerial.print(GaitLegNr[cLR], DEC);
+	DBGSerial.print(" ");
+	DBGSerial.println(GaitLegNr[cLF], DEC);
+  }
+  else {
+	//Argument should be New percentage
+    word wStepsInGait = GetCmdLineNum(&pszCmdLine);
+	word wLifted = GetCmdLineNum(&pszCmdLine);
+	
+	// first pass only pass in number of steps and maybe Lifted pos
+	if (wStepsInGait) {
+		if (wLifted) {
+			// UPdated the lifted so lets update some of the gait properties
+			NrLiftedPos = wLifted;
+			FrontDownPos = (wLifted+1)/2;
+			LiftDivFactor = (wLifted > 4)? 4 : 2;
+		}
+
+		// Assume the ordering of the gait legs here and equal spaced
+		StepsInGait = wStepsInGait;
+		TLDivFactor = StepsInGait-NrLiftedPos;
+			
+		// See if user did pass in leg positions...
+		GaitLegNr[cRR] = GetCmdLineNum(&pszCmdLine);
+		if (GaitLegNr[cRR]) {
+			GaitLegNr[cRF] = GetCmdLineNum(&pszCmdLine);
+			GaitLegNr[cLR] = GetCmdLineNum(&pszCmdLine);
+			GaitLegNr[cLF] = GetCmdLineNum(&pszCmdLine);
+		}
+		else {
+			wStepsInGait /= 4;	// equal spacing.
+			GaitLegNr[cRR] = wStepsInGait / 2;
+			GaitLegNr[cRF] = GaitLegNr[cRR] + wStepsInGait;
+			GaitLegNr[cLR] = GaitLegNr[cRF] + wStepsInGait;
+			GaitLegNr[cLF] = GaitLegNr[cLR] + wStepsInGait;
+		}
+	
+		//HalfLiftHeigth = 3;
+		//NomGaitSpeed = DEFAULT_GAIT_SPEED;
+	}	
   }
 }
 #endif
