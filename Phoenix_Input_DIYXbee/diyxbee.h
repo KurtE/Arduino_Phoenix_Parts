@@ -247,8 +247,13 @@ extern void WaitForXBeeTransmitComplete(void);
 
 extern void ClearInputBuffer(void);
 
-#if not defined(UBRR1H)
-extern SoftwareSerial XBeeSerial;
+#if defined(XBeeSerial)
+#undef cXBEE_IN
+#undef cXBEE_OUT
+
+#else
+extern SoftwareSerial XBeeSoftSerial;
+#define XBeeSerial XBeeSoftSerial
 #endif
 
 

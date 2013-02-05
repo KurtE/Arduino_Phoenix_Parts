@@ -159,11 +159,10 @@ void DIYXBeeController::Init(void)
   InitXBee();
 
 
-#ifdef __AVR__
-#if not defined(UBRR1H)
+// If using softwareserial need to do a listen...
+#ifdef cXBEE_IN
   XBeeSerial.listen();
 #endif    
-#endif     
   // Clear any stuff left in the buffer
   delay(20);
   ClearXBeeInputBuffer();
@@ -188,10 +187,8 @@ void DIYXBeeController::Init(void)
 //==============================================================================
 void DIYXBeeController::AllowControllerInterrupts(boolean fAllow)
 {
-#ifdef __AVR__
-#if not defined(UBRR1H)
+#ifdef cXBEE_IN
   XBeeSerial.listen();
-#endif    
 #endif    
 }
 

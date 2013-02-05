@@ -16,8 +16,8 @@
 
 #ifdef __AVR__
 // Add support for running on non-mega Arduino boards as well.
-#if not defined(UBRR1H)
-SoftwareSerial XBeeSerial(cXBEE_IN, cXBEE_OUT);
+#if defined(cXBEE_IN)
+SoftwareSerial XBeeSoftSerial(cXBEE_IN, cXBEE_OUT);
 #else
 #if not defined(XBeeSerial)
 #define XBeeSerial Serial2
@@ -26,8 +26,10 @@ SoftwareSerial XBeeSerial(cXBEE_IN, cXBEE_OUT);
 #endif
 
 #else
-// Non-AVR...
+// Non-AVR.
+#ifndef XBeeSerial
 #define XBeeSerial Serial3
+#endif
 #endif
 
 
