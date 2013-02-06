@@ -358,13 +358,19 @@ boolean         AllDown;
 
 //[gait]
 
-short		NomGaitSpeed;		//Nominal speed of the gait
-short           TLDivFactor;         //Number of steps that a leg is on the floor while walking
-short           NrLiftedPos;         //Number of positions that a single leg is lifted [1-3]
-byte            LiftDivFactor;       //Normaly: 2, when NrLiftedPos=5: 4
-byte            FrontDownPos;        //Where the leg should be put down to ground
+short			NomGaitSpeed;		//Nominal speed of the gait
+short           TLDivFactor;        //Number of steps that a leg is on the floor while walking
+short           NrLiftedPos;        //Number of positions that a single leg is lifted [1-3]
+byte            LiftDivFactor;      //Normaly: 2, when NrLiftedPos=5: 4
 
-boolean         HalfLiftHeigth;      //If TRUE the outer positions of the ligted legs will be half height    
+boolean         HalfLiftHeigth;     //If TRUE the outer positions of the ligted legs will be half height    
+
+byte 			FrontDownPos;		//Where the leg should be put down to ground
+
+word			COGAngleStart1;		// COG shifting starting angle
+word			COGAngleStep1;		// COG Angle Steps in degrees
+byte			COGRadius;			// COG Radius; the amount the body shifts
+boolean 		COGCCW;				// COG Gait sequence runs counter clock wise
 
 boolean         TravelRequest;        //Temp to check if the gait is in motion
 byte            StepsInGait;         //Number of steps in gait
@@ -380,9 +386,13 @@ long            GaitPosY[CNT_LEGS];         //Array containing Relative Y positi
 long            GaitPosZ[CNT_LEGS];         //Array containing Relative Z position corresponding to the Gait
 long            GaitRotY[CNT_LEGS];         //Array containing Relative Y rotation corresponding to the Gait
 
+#ifdef XXX
 byte			GaitBalPercent[CNT_LEGS];	// Array containg how much each legs position should weigh in the Dynamic Balance...
 long			TotGaitBalPercent;			// Our total gait percentage...
-
+#else
+boolean			GaitLegInAir[CNT_LEGS];		// True if leg is in the air
+byte			GaitNextLeg;				// The next leg which will be lifted
+#endif
 boolean         fWalking;            //  True if the robot are walking
 byte            bExtraCycle;          // Forcing some extra timed cycles for avoiding "end of gait bug"
 #define         cGPlimit 2           // GP=GaitPos testing different limits
@@ -402,11 +412,14 @@ extern void CheckAngles();
 extern void    PrintSystemStuff(void);            // Try to see why we fault...
 
 
+extern void  GaitGetNextLeg(byte GaitStep);
 extern void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr);
 extern void BodyFK (short PosX, short PosZ, short PosY, short RotationY, byte BodyIKLeg) ;
 extern void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegNr);
 extern void Gait (byte GaitCurrentLegNr);
+extern void GetSinCos(short AngleDeg1);
 extern short GetATan2 (short AtanX, short AtanY);
+extern unsigned long isqrt32 (unsigned long n);
 
 extern void StartUpdateServos(void);
 extern boolean TerminalMonitor(void);
@@ -563,8 +576,8 @@ void loop(void)
   TotalYBal1 = 0;
   TotalZBal1 = 0;
 #ifdef QUADMODE
-  TotalTransLegCnt = 0;
-  TotGaitBalPercent = 0;
+//  TotalTransLegCnt = 0;
+//  TotGaitBalPercent = 0;
 #endif
   
   if (g_InControlState.BalanceMode) {
@@ -910,7 +923,7 @@ void SingleLegControl(void)
 }
 
 #ifndef DEFAULT_GAIT_SPEED
-#define DEFAULT_GAIT_SPEED 60
+#define DEFAULT_GAIT_SPEED 50
 #define DEFAULT_SLOW_GAIT 70
 #endif
 
@@ -1037,20 +1050,65 @@ void GaitSelect(void)
 #else
 	// quad mode
   case 0:
-    //Wave 24 Step
-    GaitLegNr[cRR] = 3;
+    //Wave 16
+    GaitLegNr[cRR] = 5;
     GaitLegNr[cRF] = 9;
-    GaitLegNr[cLR] = 15;
-    GaitLegNr[cLF] = 21;
+    GaitLegNr[cLR] = 1;
+    GaitLegNr[cLF] = 13;
     NrLiftedPos = 3;
     FrontDownPos = 2;
     LiftDivFactor = 2;
     HalfLiftHeigth = 3;
-    TLDivFactor = 21;      
-    StepsInGait = 24;        
+    TLDivFactor = 12;      
+    StepsInGait = 16;        
     NomGaitSpeed = DEFAULT_GAIT_SPEED;
 	g_fQuadDynamicShift = true;
+    COGRadius = 30;
+    COGAngleStart1 = 2250;	//Start leg is LR = 225 deg
+    COGAngleStep1 = 3600/StepsInGait;
+    COGCCW = true;
     break;
+ 
+  case 1:
+    //Wave 28
+    GaitLegNr[cRR] = 8;
+    GaitLegNr[cRF] = 15;
+    GaitLegNr[cLR] = 1;
+    GaitLegNr[cLF] = 22;
+    NrLiftedPos = 3;
+    FrontDownPos = 2;
+    LiftDivFactor = 2;
+    HalfLiftHeigth = 3;
+    TLDivFactor = 24;      
+    StepsInGait = 28;        
+    NomGaitSpeed = 1;
+	g_fQuadDynamicShift = true;
+    COGRadius = 30;
+    COGAngleStart1 = 2250;	//Start leg is LR = 225 deg
+    COGAngleStep1 = 3600/StepsInGait;
+    COGCCW = true;
+    break;
+  
+  case 2:
+    //Wave 28A
+    GaitLegNr[cRR] = 8;
+    GaitLegNr[cRF] = 15;
+    GaitLegNr[cLR] = 1;
+    GaitLegNr[cLF] = 22;
+    NrLiftedPos = 5;
+    FrontDownPos = 3;
+    LiftDivFactor = 2;
+    HalfLiftHeigth = 3;
+    TLDivFactor = 22;      
+    StepsInGait = 28;        
+    NomGaitSpeed = 1;
+	g_fQuadDynamicShift = true;
+    COGRadius = 30;
+    COGAngleStart1 = 2250;	//Start leg is LR = 225 deg
+    COGAngleStep1 = 3600/StepsInGait;
+    COGCCW = true;
+    break;
+  
   default:
     //Alternatiting legs
     //Tripod 6 steps
@@ -1139,7 +1197,8 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight;
     GaitPosZ[GaitCurrentLegNr] = 0;
     GaitRotY[GaitCurrentLegNr] = 0;
-	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
+//	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
+	GaitLegInAir[GaitCurrentLegNr] = true;
   }
   //Optional Half heigth Rear (2, 3, 5 lifted positions)
   else if (((NrLiftedPos==2 && LegStep==0) || (NrLiftedPos>=3 && 
@@ -1149,7 +1208,8 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+HalfLiftHeigth);     //Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/LiftDivFactor;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/LiftDivFactor;
-	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
+//	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
+	GaitLegInAir[GaitCurrentLegNr] = true;
   }    
   // _A_	  
   // Optional Half heigth front (2, 3, 5 lifted positions)
@@ -1158,7 +1218,8 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+HalfLiftHeigth); // Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/LiftDivFactor;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/LiftDivFactor;
-	GaitBalPercent[GaitCurrentLegNr] = 25;	// Leg part way through move, cycling toward down...
+//	GaitBalPercent[GaitCurrentLegNr] = 25;	// Leg part way through move, cycling toward down...
+	GaitLegInAir[GaitCurrentLegNr] = true;
   }
 
   //Optional Half heigth Rear 5 LiftedPos (5 lifted positions)
@@ -1167,7 +1228,8 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/2;
-	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg starting up...
+//	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg starting up...
+	GaitLegInAir[GaitCurrentLegNr] = true;
   }  		
 
   //Optional Half heigth Front 5 LiftedPos (5 lifted positions)
@@ -1176,18 +1238,20 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;
-	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg part way through move, cycling toward down...
+//	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg part way through move, cycling toward down...
+	GaitLegInAir[GaitCurrentLegNr] = true;
   }
   //_B_
   //Leg front down position //bug here?  From _A_ to _B_ there should only be one gaitstep, not 2!
   //For example, where is the case of LegStep==0+2 executed when NRLiftedPos=3?
-  else if ((LegStep==FrontDownPos || LegStep==-(StepsInGait-FrontDownPos))
-    && GaitPosY[GaitCurrentLegNr]<0) {
+  else if ((LegStep==FrontDownPos || LegStep==-(StepsInGait-FrontDownPos)) && GaitPosY[GaitCurrentLegNr]<0) {
     GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;      	
     GaitPosY[GaitCurrentLegNr] = 0;	
-	GaitBalPercent[GaitCurrentLegNr] = TravelRequest?50 : 100;	// Leg moving to down position...
+//	GaitBalPercent[GaitCurrentLegNr] = TravelRequest?50 : 100;	// Leg moving to down position...
+	GaitLegInAir[GaitCurrentLegNr] = true;
+	GaitGetNextLeg(GaitStep);	// Figure out which leg will lift next
   }
 
   //Move body forward      
@@ -1196,6 +1260,7 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = 0; 
     GaitPosZ[GaitCurrentLegNr] = GaitPosZ[GaitCurrentLegNr] - (g_InControlState.TravelLength.z/TLDivFactor);
     GaitRotY[GaitCurrentLegNr] = GaitRotY[GaitCurrentLegNr] - (g_InControlState.TravelLength.y/TLDivFactor);
+#ifdef xxx
 	GaitBalPercent[GaitCurrentLegNr] = 100;	// Leg is down and not moving...
 	if (TravelRequest) {  // BUGBUG::: should be modified to handle leglift of 5...
 		if ((LegStep == -2) || (LegStep==(StepsInGait-2)))
@@ -1203,10 +1268,44 @@ void Gait (byte GaitCurrentLegNr)
 		else if ((LegStep == -3) || (LegStep==(StepsInGait-3)))
 			GaitBalPercent[GaitCurrentLegNr] = 75;		// Leg is Just about to start lifting
 	}
+#endif	
+	GaitLegInAir[GaitCurrentLegNr] = false;
   }
 
 }  
 
+//--------------------------------------------------------------------
+//[BALGETNEXTLEG] Get the legNr of the next leg which will be lifted
+void  GaitGetNextLeg(byte GaitStep) {
+
+	byte NextLegIndex;
+	boolean GaitNextLegFound = false;
+
+	//Find Next leg in gait sequence 
+	for (NextLegIndex = 0; NextLegIndex <  CNT_LEGS; NextLegIndex++) {
+		if (GaitLegNr[NextLegIndex] > GaitStep) {
+			if (GaitNextLegFound) {
+				if (GaitLegNr[NextLegIndex] < GaitLegNr[GaitNextLeg]) {
+					GaitNextLeg = NextLegIndex;
+				}
+			}
+			else {
+				GaitNextLeg = NextLegIndex;
+				GaitNextLegFound = true;
+			}
+		}
+	}	
+
+	//if there is no next, return first leg in gait (lowest nr)
+	if (!GaitNextLegFound) {
+		GaitNextLeg = 0;
+		for (NextLegIndex = 1; NextLegIndex <  CNT_LEGS; NextLegIndex++) {
+			if (GaitLegNr[NextLegIndex] < GaitLegNr[GaitNextLeg]) {
+				GaitNextLeg = NextLegIndex;
+			}
+		}
+	}	
+}
 
 //--------------------------------------------------------------------
 //[BalCalcOneLeg]
@@ -1237,6 +1336,7 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
   TotalXBal1 += ((lAtan*1800) / 31415) - 900; //Rotate balance circle 90 deg
 
 #else
+#if 0
   if (g_fQuadDynamicShift/* || (GaitPosY[BalLegNr] >= 0)*/) {
 	TotalTransY += (long)(PosY * GaitBalPercent[BalLegNr]);
 	TotalTransZ += (long)(CPR_Z * GaitBalPercent[BalLegNr]);
@@ -1257,15 +1357,16 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
 	DBGSerial.print(GaitBalPercent[BalLegNr], DEC);
 	DBGSerial.print(" ");
   }
+#endif  
 #endif
 #endif  
 
 }  
 //--------------------------------------------------------------------
 //[BalanceBody]
+#ifndef QUADMODE
 void BalanceBody(void)
 {
-#ifndef QUADMODE
   TotalTransZ = TotalTransZ/BalanceDivFactor ;
   TotalTransX = TotalTransX/BalanceDivFactor;
   TotalTransY = TotalTransY/BalanceDivFactor;
@@ -1286,7 +1387,76 @@ void BalanceBody(void)
   TotalXBal1 = -TotalXBal1/BalanceDivFactor;
   TotalZBal1 = TotalZBal1/BalanceDivFactor;
 
+}
+
 #else
+// Quad mode
+void BalanceBody(void)
+{
+	// conversion of Xans stuff...
+	long BalTotTravelLength;
+	word BalCOGTransX;
+	word BalCOGTransZ;
+	int COGAngle1;
+	if (COGCCW)
+		COGAngle1 = COGAngleStart1 - (GaitStep-1) * COGAngleStep1;
+	else
+		COGAngle1 = COGAngleStart1 + (GaitStep-1) * COGAngleStep1;
+
+	GetSinCos(COGAngle1);
+	TotalTransX = (long)((long)COGRadius * (long)sin4) / c4DEC;
+	TotalTransZ = (long)((long)COGRadius * (long)cos4) / c4DEC;
+
+#ifdef DEBUG
+	if (g_fDebugOutput) {
+		DBGSerial.print(GaitStep-1, DEC);
+		DBGSerial.print(" ");
+		DBGSerial.print(COGAngleStep1, DEC);
+		DBGSerial.print(" ");
+		DBGSerial.print(COGAngleStart1, DEC);
+		DBGSerial.print(" ");
+		DBGSerial.print(TotalTransX, DEC);
+		DBGSerial.print(" ");
+		DBGSerial.println(TotalTransZ, DEC);
+	} 
+#endif
+
+	//Add direction variable. The body will not shift in the direction you're walking
+	if(g_InControlState.TravelLength.y == 0) {
+		BalTotTravelLength = isqrt32((long)g_InControlState.TravelLength.x*g_InControlState.TravelLength.x 
+			+ (long)g_InControlState.TravelLength.z*g_InControlState.TravelLength.z);
+		if (BalTotTravelLength) {	
+			BalCOGTransX = ((word)abs(g_InControlState.TravelLength.z)*c2DEC)/BalTotTravelLength;
+			BalCOGTransZ = ((word)abs(g_InControlState.TravelLength.x)*c2DEC)/BalTotTravelLength;
+			TotalTransX = ((long)(TotalTransX*BalCOGTransX))/c2DEC;
+			TotalTransZ = ((long)(TotalTransZ*BalCOGTransZ))/c2DEC;
+		} 
+		else {
+			BalCOGTransX = 0;
+			BalCOGTransZ = 0;
+			TotalTransX = 0;
+			TotalTransZ = 0;
+		}
+#ifdef DEBUG
+
+		if (g_fDebugOutput) {
+			DBGSerial.print("   ");
+			DBGSerial.print(BalTotTravelLength, DEC);
+			DBGSerial.print(" ");
+			DBGSerial.print(BalCOGTransX, DEC);
+			DBGSerial.print("=");
+			DBGSerial.print(BalCOGTransZ, DEC);
+			DBGSerial.print(" ");
+			DBGSerial.print(TotalTransX, DEC);
+			DBGSerial.print(" ");
+			DBGSerial.println(TotalTransZ, DEC);
+		} 
+#endif
+	}
+	//serout s_out, i38400, [sdec BalStepsTillLift, " ", dec GaitLegNr(GaitNextLeg), " ", dec FrontDownPos, " ", dec GaitStep, 13]
+  
+
+#if 0
   if (TotGaitBalPercent) {
     TotalTransZ = (TotalTransZ*BalancePercentage)/(TotGaitBalPercent*100);
     TotalTransX = (TotalTransX*BalancePercentage)/(TotGaitBalPercent*100);
@@ -1311,10 +1481,9 @@ void BalanceBody(void)
   TotalYBal1 = 0;
   TotalXBal1 = 0;
   TotalZBal1 = 0;
-#endif
+#endif  
 }
-
-
+#endif
 //--------------------------------------------------------------------
 //[GETSINCOS] Get the sinus and cosinus from the angle +/- multiple circles
 //AngleDeg1     - Input Angle in degrees
