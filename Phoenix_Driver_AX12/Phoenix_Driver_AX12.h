@@ -123,9 +123,7 @@ void ServoDriver::Init(void) {
   // First lets get the actual servo positions for all of our servos...
   pinMode(0, OUTPUT);
   g_fServosFree = true;
-  
   bioloid.poseSize = NUMSERVOS;
-  
   bioloid.readPose();
 #ifdef cVoltagePin  
   for (byte i=0; i < 8; i++)
@@ -337,7 +335,7 @@ void ServoDriver::GPPlayer(void)
     EEPROMReadData(g_wSeqHeaderStart + sizeof(g_eepph) + (g_bSeqStepNum*sizeof(EEPROMPoseSeq)), (uint8_t*)&eepps, sizeof(eepps));
 
     // Now lets setup to read in the pose information
-    word wEEPromPoseLoc = g_wSeqHeaderStart + sizeof(g_eepph) + (g_eepph.bCntPoses*sizeof(EEPROMPoseSeq)) + (eepps.bPoseNum * sizeof(word) * NUMSERVOS);  // should not hard code 18
+    word wEEPromPoseLoc = g_wSeqHeaderStart + sizeof(g_eepph) + (g_eepph.bCntPoses*sizeof(EEPROMPoseSeq)) + (eepps.bPoseNum * sizeof(word) * NUMSERVOS); 
     for (bServo=0; bServo < NUMSERVOS; bServo++) {
       EEPROMReadData(wEEPromPoseLoc, (uint8_t*)&wPosePos, sizeof(wPosePos));
       if (!fRobotUpsideDownGPStart) {
@@ -425,25 +423,13 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
 #ifdef c4DOF
   word    wTarsSSCV;        //
 #endif
-
-  //Update Right Legs
-  g_InputController.AllowControllerInterrupts(false);    // If on xbee on hserial tell hserial to not processess...
-  if (LegIndex < (CNT_LEGS/2)) {
-    wCoxaSSCV = (((long)(-sCoxaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
-    wFemurSSCV = (((long)(-sFemurAngle1))* cPwmMult) / cPwmDiv +cPFConst;
-    wTibiaSSCV = (((long)(-sTibiaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  // The Main code now takes care of the inversion before calling.
+  wCoxaSSCV = (((long)(sCoxaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  wFemurSSCV = (((long)((long)(sFemurAngle1))* cPwmMult) / cPwmDiv +cPFConst);
+  wTibiaSSCV = (((long)(sTibiaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
 #ifdef c4DOF
-    wTarsSSCV = (((long)(-sTarsAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  wTarsSSCV = (((long)(sTarsAngle1))* cPwmMult) / cPwmDiv +cPFConst;
 #endif
-  } 
-  else {
-    wCoxaSSCV = (((long)(sCoxaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
-    wFemurSSCV = (((long)((long)(sFemurAngle1))* cPwmMult) / cPwmDiv +cPFConst);
-    wTibiaSSCV = (((long)(sTibiaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
-#ifdef c4DOF
-    wTarsSSCV = (((long)(sTarsAngle1))* cPwmMult) / cPwmDiv +cPFConst;
-#endif
-  }
   if (ServosEnabled) {
     if (g_fAXSpeedControl) {
 #ifdef USE_AX12_SPEED_CONTROL
@@ -452,7 +438,7 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
       g_awGoalAXPos[FIRSTFEMURPIN+LegIndex] = wFemurSSCV;    
       g_awGoalAXPos[FIRSTTIBIAPIN+LegIndex] = wTibiaSSCV;    
 #ifdef c4DOF
-      g_awGoalAXPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;   // KevinO change - was it a typo or function change at one time?
+      g_awGoalAXTarsPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;    
 #endif
 #endif
     }
@@ -792,7 +778,7 @@ void EEPROMReadData(word wStart, uint8_t *pv, byte cnt) {
 #define ARB_TEST        25
 
 // Global to this function...
-byte   g_bPoseSize = NUMSERVOS;  // assume poses are for NUMSERVOS servos.
+byte   g_bPoseSize = NUMSERVOS;  
 
 short g_poses[540];              // enough for 30 steps...
 typedef struct{
@@ -1121,14 +1107,11 @@ boolean PyPoseSaveToEEPROM(byte bSeqNum) {
       break;
     }
     EEPROMReadData(w, (uint8_t*)&eepph, sizeof(eepph));
-    
     if ((eepph.bSeqNum != iSeq) || (eepph.bCntServos != NUMSERVOS)) {
       fValidHeaders = false;
       break;
-
     }
     w = wHeaderStart + sizeof(eepph) + (eepph.bCntSteps * sizeof(EEPROMPoseSeq)) + (eepph.bCntPoses * sizeof(word) * NUMSERVOS);
-
     if (w >= GPSEQ_EEPROM_SIZE) { 
       fValidHeaders = false;
       break;
@@ -1138,9 +1121,7 @@ boolean PyPoseSaveToEEPROM(byte bSeqNum) {
 
   // Note: if previous data invalid will try to store data after last valid one...
   eepph.bSeqNum = iSeq;    // save the sequence number here.
-
-  eepph.bCntServos = NUMSERVOS  // say that it has our number of servos
-
+  eepph.bCntServos = NUMSERVOS;  // say that it has NUMSERVOS steps.
   eepph.bCntPoses = 0;
   for (eepph.bCntSteps = 0; g_sequence[eepph.bCntSteps].pose != 0xff; eepph.bCntSteps++) {
     if (g_sequence[eepph.bCntSteps].pose > eepph.bCntPoses)
