@@ -1,5 +1,7 @@
+# Warning 
+
 ******************************************************************************************
-* *** Again Warning *** This branch is a real WIP to try to add some Quad support        *
+*** This branch is a real WIP to try to add some Quad support        *
 * into the library.  I will upload things in this branch that are not working...  Also   *
 * at times, some changes may be due to trying to get this to compile on an Arduino Due   *
 ******************************************************************************************
@@ -21,6 +23,14 @@ In the Phoenix library there are several examples of configurations.  Once these
 directories are installed, you can simply go to the file menu, look in the Examples
 menu item, and hopefully in this list will be Phoenix and under this are
 several configrations…
+
+
+Note: I think this last check in should match the functionality of the changes
+made by Jeroen (Xan) for the code up on the Lynxmotion gethub code... 
+
+In addition I also made the changes where you can choose which servos need to be
+reversed in the hex config file, also not specific to quads.  This required changes
+to all of the _Driver_ files
 
 Good Luck
 Kurt

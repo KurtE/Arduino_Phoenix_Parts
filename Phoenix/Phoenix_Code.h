@@ -81,8 +81,92 @@ static const word GetSin[] PROGMEM = {
   9975, 9981, 9986, 9990, 9993, 9996, 9998, 9999, 10000 };//
 
 
-//Build tables for Leg configuration like I/O and MIN/imax values to easy access values using a FOR loop
+//Build tables for Leg configuration like I/O and MIN/ Max values to easy access values using a FOR loop
 //Constants are still defined as single values in the cfg file to make it easy to read/configure
+
+// BUGBUG: Need a cleaner way to define...
+// Lets allow for which legs servos to be inverted to be defined by the robot
+// This is used by the Lynxmotion Symetrical Quad.
+#ifndef cRRCoxaInv
+#define cRRCoxaInv 1 
+#endif
+#ifndef cRMCoxaInv 
+#define cRMCoxaInv 1 
+#endif
+#ifndef cRFCoxaInv 
+#define cRFCoxaInv 1 
+#endif
+
+#ifndef cLRCoxaInv 
+#define cLRCoxaInv 0 
+#endif
+#ifndef cLMCoxaInv 
+#define cLMCoxaInv 0 
+#endif
+#ifndef cLFCoxaInv 
+#define cLFCoxaInv 0 
+#endif
+
+#ifndef cRRFemurInv 
+#define cRRFemurInv 1 
+#endif
+#ifndef cRMFemurInv 
+#define cRMFemurInv 1 
+#endif
+#ifndef cRFFemurInv 
+#define cRFFemurInv 1 
+#endif
+
+#ifndef cLRFemurInv 
+#define cLRFemurInv 0 
+#endif
+#ifndef cLMFemurInv 
+#define cLMFemurInv 0 
+#endif
+#ifndef cLFFemurInv 
+#define cLFFemurInv 0 
+#endif
+
+#ifndef cRRTibiaInv 
+#define cRRTibiaInv 1 
+#endif
+#ifndef cRMTibiaInv 
+#define cRMTibiaInv 1 
+#endif
+#ifndef cRFTibiaInv 
+#define cRFTibiaInv 1 
+#endif
+
+#ifndef cLRTibiaInv 
+#define cLRTibiaInv 0 
+#endif
+#ifndef cLMTibiaInv 
+#define cLMTibiaInv 0 
+#endif
+#ifndef cLFTibiaInv 
+#define cLFTibiaInv 0 
+#endif
+
+#ifndef cRRTarsInv
+#define cRRTarsInv 1 
+#endif
+#ifndef cRMTarsInv 
+#define cRMTarsInv 1 
+#endif
+#ifndef cRFTarsInv 
+#define cRFTarsInv 1 
+#endif
+
+#ifndef cLRTarsInv 
+#define cLRTarsInv 0 
+#endif
+#ifndef cLMTarsInv 
+#define cLMTarsInv 0 
+#endif
+#ifndef cLFTarsInv 
+#define cLFTarsInv 0 
+#endif
+
 
 #ifndef QUADMODE
 // Standard Hexapod...
@@ -111,7 +195,7 @@ static const short cTarsHornOffset1[] PROGMEM = {
 #endif
 #endif
 
-//Min / imax values
+//Min / Max values
 const short cCoxaMin1[] PROGMEM = {
   cRRCoxaMin1,  cRMCoxaMin1,  cRFCoxaMin1,  cLRCoxaMin1,  cLMCoxaMin1,  cLFCoxaMin1};
 const short cCoxaMax1[] PROGMEM = {
@@ -132,6 +216,14 @@ const short cTarsMax1[] PROGMEM = {
   cRRTarsMax1, cRMTarsMax1, cRFTarsMax1, cLRTarsMax1, cLMTarsMax1, cLFTarsMax1};
 #endif
 
+// Servo inverse direction
+const bool cCoxaInv[] = {cRRCoxaInv, cRMCoxaInv, cRFCoxaInv, cLRCoxaInv, cLMCoxaInv, cLFCoxaInv};
+bool cFemurInv[] = {cRRFemurInv, cRMFemurInv, cRFFemurInv, cLRFemurInv, cLMFemurInv, cLFFemurInv};
+const bool cTibiaInv[] = {cRRTibiaInv, cRMTibiaInv, cRFTibiaInv, cLRTibiaInv, cLMTibiaInv, cLFTibiaInv};
+
+#ifdef c4DOF
+const boolean cTarsInv[] = {cRRTarsInv, cRMTarsInv, cRFTarsInv, cLRTarsInv, cLMTarsInv, cLFTarsInv};
+#endif	
 
 //Leg Lengths
 const byte cCoxaLength[] PROGMEM = {
@@ -192,7 +284,7 @@ static const short cTarsHornOffset1[] PROGMEM = {
 #endif
 #endif
 
-//Min / imax values
+//Min / Max values
 const short cCoxaMin1[] PROGMEM = {
   cRRCoxaMin1,  cRFCoxaMin1,  cLRCoxaMin1,  cLFCoxaMin1};
 const short cCoxaMax1[] PROGMEM = {
@@ -212,6 +304,18 @@ const short cTarsMin1[] PROGMEM = {
 const short cTarsMax1[] PROGMEM = {
   cRRTarsMax1, cRFTarsMax1, cLRTarsMax1, cLFTarsMax1};
 #endif
+
+
+// Servo inverse direction
+const bool cCoxaInv[] = {cRRCoxaInv, cRFCoxaInv, cLRCoxaInv, cLFCoxaInv};
+bool cFemurInv[] = {cRRFemurInv, cRFFemurInv, cLRFemurInv, cLFFemurInv};
+const bool cTibiaInv[] = {cRRTibiaInv, cRFTibiaInv, cLRTibiaInv, cLFTibiaInv};
+
+#ifdef c4DOF
+const boolean cTarsInv[] = {
+	cRRTarsInv, cRFTarsInv, cLRTarsInv, cLFTarsInv};
+#endif	
+	
 
 
 //Leg Lengths
@@ -793,9 +897,16 @@ void StartUpdateServos()
 
     for (LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++) {
 #ifdef c4DOF
-    g_ServoDriver.OutputServoInfoForLeg(LegIndex, CoxaAngle1[LegIndex], FemurAngle1[LegIndex], TibiaAngle1[LegIndex], TarsAngle1[LegIndex]);
+    g_ServoDriver.OutputServoInfoForLeg(LegIndex, 
+        cCoxaInv[LegIndex]? -CoxaAngle1[LegIndex] : CoxaAngle1[LegIndex], 
+        cFemurInv[LegIndex]? -FemurAngle1[LegIndex] : FemurAngle1[LegIndex], 
+        cTibiaInv[LegIndex]? -TibiaAngle1[LegIndex] : TibiaAngle1[LegIndex], 
+        cTarsInv[LegIndex]? -TarsAngle1[LegIndex]) : TarsAngle1[LegIndex]);
 #else
-    g_ServoDriver.OutputServoInfoForLeg(LegIndex, CoxaAngle1[LegIndex], FemurAngle1[LegIndex], TibiaAngle1[LegIndex]);
+    g_ServoDriver.OutputServoInfoForLeg(LegIndex, 
+        cCoxaInv[LegIndex]? -CoxaAngle1[LegIndex] : CoxaAngle1[LegIndex], 
+        cFemurInv[LegIndex]? -FemurAngle1[LegIndex] : FemurAngle1[LegIndex], 
+        cTibiaInv[LegIndex]? -TibiaAngle1[LegIndex] : TibiaAngle1[LegIndex]);
 #endif      
   }
 }
@@ -1090,17 +1201,17 @@ void GaitSelect(void)
     break;
   
   case 2:
-    //Wave 28A
-    GaitLegNr[cRR] = 8;
-    GaitLegNr[cRF] = 15;
+    //Wave 20
+    GaitLegNr[cRR] = 6;
+    GaitLegNr[cRF] = 11;
     GaitLegNr[cLR] = 1;
-    GaitLegNr[cLF] = 22;
+    GaitLegNr[cLF] = 16;
     NrLiftedPos = 5;
     FrontDownPos = 3;
     LiftDivFactor = 2;
     HalfLiftHeigth = 3;
-    TLDivFactor = 22;      
-    StepsInGait = 28;        
+    TLDivFactor = 18;      
+    StepsInGait = 20;        
     NomGaitSpeed = 1;
 	g_fQuadDynamicShift = true;
     COGRadius = 30;
@@ -1386,104 +1497,68 @@ void BalanceBody(void)
   TotalYBal1 = -TotalYBal1/BalanceDivFactor;
   TotalXBal1 = -TotalXBal1/BalanceDivFactor;
   TotalZBal1 = TotalZBal1/BalanceDivFactor;
-
 }
+
 
 #else
 // Quad mode
 void BalanceBody(void)
 {
-	// conversion of Xans stuff...
-	long BalTotTravelLength;
-	word BalCOGTransX;
-	word BalCOGTransZ;
-	int COGAngle1;
-	if (COGCCW)
-		COGAngle1 = COGAngleStart1 - (GaitStep-1) * COGAngleStep1;
-	else
-		COGAngle1 = COGAngleStart1 + (GaitStep-1) * COGAngleStep1;
+  byte COGShiftNeeded;
+  byte BalCOGTransX;
+  byte BalCOGTransZ;
+  word COGAngle1;
+  long BalTotTravelLength;
 
-	GetSinCos(COGAngle1);
-	TotalTransX = (long)((long)COGRadius * (long)sin4) / c4DEC;
-	TotalTransZ = (long)((long)COGRadius * (long)cos4) / c4DEC;
-
-#ifdef DEBUG
-	if (g_fDebugOutput) {
-		DBGSerial.print(GaitStep-1, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.print(COGAngleStep1, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.print(COGAngleStart1, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.print(TotalTransX, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.println(TotalTransZ, DEC);
-	} 
-#endif
-
-	//Add direction variable. The body will not shift in the direction you're walking
-	if(g_InControlState.TravelLength.y == 0) {
-		BalTotTravelLength = isqrt32((long)g_InControlState.TravelLength.x*g_InControlState.TravelLength.x 
-			+ (long)g_InControlState.TravelLength.z*g_InControlState.TravelLength.z);
-		if (BalTotTravelLength) {	
-			BalCOGTransX = ((word)abs(g_InControlState.TravelLength.z)*c2DEC)/BalTotTravelLength;
-			BalCOGTransZ = ((word)abs(g_InControlState.TravelLength.x)*c2DEC)/BalTotTravelLength;
-			TotalTransX = ((long)(TotalTransX*BalCOGTransX))/c2DEC;
-			TotalTransZ = ((long)(TotalTransZ*BalCOGTransZ))/c2DEC;
-		} 
-		else {
-			BalCOGTransX = 0;
-			BalCOGTransZ = 0;
-			TotalTransX = 0;
-			TotalTransZ = 0;
-		}
-#ifdef DEBUG
-
-		if (g_fDebugOutput) {
-			DBGSerial.print("   ");
-			DBGSerial.print(BalTotTravelLength, DEC);
-			DBGSerial.print(" ");
-			DBGSerial.print(BalCOGTransX, DEC);
-			DBGSerial.print("=");
-			DBGSerial.print(BalCOGTransZ, DEC);
-			DBGSerial.print(" ");
-			DBGSerial.print(TotalTransX, DEC);
-			DBGSerial.print(" ");
-			DBGSerial.println(TotalTransZ, DEC);
-		} 
-#endif
-	}
-	//serout s_out, i38400, [sdec BalStepsTillLift, " ", dec GaitLegNr(GaitNextLeg), " ", dec FrontDownPos, " ", dec GaitStep, 13]
-  
-
-#if 0
-  if (TotGaitBalPercent) {
-    TotalTransZ = (TotalTransZ*BalancePercentage)/(TotGaitBalPercent*100);
-    TotalTransX = (TotalTransX*BalancePercentage)/(TotGaitBalPercent*100);
-    TotalTransY = (TotalTransY*BalancePercentage)/(TotGaitBalPercent*100);
+  COGShiftNeeded = TravelRequest;
+  for (LegIndex = 0; LegIndex <= 3; LegIndex++)
+  {
+    // Check if the cog needs to be shifted (travelRequest or legs goto home.)
+    COGShiftNeeded = COGShiftNeeded || (abs(GaitPosX[LegIndex])>2) || (abs(GaitPosZ[LegIndex])>2) || (abs(GaitRotY[LegIndex])>2);
   }
-#ifdef DEBUG
-  if (g_fDebugOutput) {
-	DBGSerial.print(TotGaitBalPercent, DEC);
-	DBGSerial.print("=");
-	DBGSerial.print(TotalTransX, DEC);
-	DBGSerial.print(" ");
-	DBGSerial.print(TotalTransY, DEC);
-	DBGSerial.print(" ");
-	DBGSerial.print(TotalTransZ, DEC);
-	DBGSerial.print("=");
-	DBGSerial.println(GaitStep, DEC);
-	
-  } 
-#endif
 
-  // Try zeroing these out for now...
-  TotalYBal1 = 0;
-  TotalXBal1 = 0;
-  TotalZBal1 = 0;
-#endif  
-}
+  if (COGShiftNeeded) {
+    if (COGCCW) {
+      COGAngle1 = COGAngleStart1 - (GaitStep-1) * COGAngleStep1;
+    } else {
+      COGAngle1 = COGAngleStart1 + (GaitStep-1) * COGAngleStep1;
+    }
+    GetSinCos(COGAngle1);
+    TotalTransX = (long)COGRadius * (long)sin4 / c4DEC;
+    TotalTransZ = (long)COGRadius * (long)cos4 / c4DEC;
+	
+#ifdef DEBUG
+    if (g_fDebugOutput) {
+	  DBGSerial.print(" TotalTransX: ");
+	  DBGSerial.print(TotalTransX, DEC);
+	  DBGSerial.print(" TotalTransZ: ");
+	  DBGSerial.print(TotalTransZ, DEC);
+    }
 #endif
+    // Add direction variable. The body will not shift in the direction you're walking
+    if (((abs(g_InControlState.TravelLength.x)>cTravelDeadZone) || (abs(g_InControlState.TravelLength.z)>cTravelDeadZone)) && (abs(g_InControlState.TravelLength.y)<=cTravelDeadZone) ) {
+    //if(TravelRotationY = 0) then
+
+      BalTotTravelLength = isqrt32(abs(g_InControlState.TravelLength.x * g_InControlState.TravelLength.x) + abs(g_InControlState.TravelLength.z*g_InControlState.TravelLength.z));
+      BalCOGTransX = abs(g_InControlState.TravelLength.z)*c2DEC/BalTotTravelLength;
+      BalCOGTransZ = abs(g_InControlState.TravelLength.x)*c2DEC/BalTotTravelLength;
+      TotalTransX = TotalTransX*BalCOGTransX/c2DEC;
+      TotalTransZ = TotalTransZ*BalCOGTransZ/c2DEC;
+    }
+  
+#ifdef DEBUG
+    if (g_fDebugOutput) {
+      DBGSerial.print(" COGRadius: ");
+	  DBGSerial.print(COGRadius, DEC);
+ 	  DBGSerial.print(" TotalTransX: ");
+	  DBGSerial.print(TotalTransX, DEC);
+	  DBGSerial.print(" TotalTransZ: ");
+	  DBGSerial.println(TotalTransZ, DEC);
+    }
+  }  
+#endif
+}
+#endif  
 //--------------------------------------------------------------------
 //[GETSINCOS] Get the sinus and cosinus from the angle +/- multiple circles
 //AngleDeg1     - Input Angle in degrees

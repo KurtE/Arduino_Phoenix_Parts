@@ -58,18 +58,19 @@ void ServoDriver::Init(void) {
   Orion.SetLipoCutoff(0);	
 
   // Some of this could/should go external program and may only need to be done once.
+  // Note New code is now doing the inversion of servos before calling here...
 #define SERVOUNITSPERDEGREE 189  
   byte i;
   for (i=0; i < CNT_LEGS; i++) {
 	Orion.SetServoDegree(pgm_read_byte(&cCoxaPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cCoxaPin[i]), i < (CNT_LEGS/2));
+	//Orion.SetServoDir(pgm_read_byte(&cCoxaPin[i]), i < (CNT_LEGS/2));
 	Orion.SetServoDegree(pgm_read_byte(&cFemurPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cFemurPin[i]), i < (CNT_LEGS/2));
+	//Orion.SetServoDir(pgm_read_byte(&cFemurPin[i]), i < (CNT_LEGS/2));
 	Orion.SetServoDegree(pgm_read_byte(&cTibiaPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cTibiaPin[i]), i < (CNT_LEGS/2));
+	//Orion.SetServoDir(pgm_read_byte(&cTibiaPin[i]), i < (CNT_LEGS/2));
 #ifdef c4DOF
 	Orion.SetServoDegree(pgm_read_byte(&cTarsPin[i]), SERVOUNITSPERDEGREE);
-	Orion.SetServoDir(pgm_read_byte(&cTarsPin[i]), i < (CNT_LEGS/2));
+	//Orion.SetServoDir(pgm_read_byte(&cTarsPin[i]), i < (CNT_LEGS/2));
 #endif
   }
   
