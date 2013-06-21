@@ -1867,7 +1867,11 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
   else
     TibiaAngle1[LegIKLegNr] = -(1800-(long)AngleRad4*180/3141);//Full range tibia, right side (up side up)
 #else
-  TibiaAngle1[LegIKLegNr] = -(900-(long)AngleRad4*180/3141);
+#ifdef PHANTOMX_V2     // BugBug:: cleaner way?  
+    TibiaAngle1[LegIKLegNr] = -(1450-(long)AngleRad4*180/3141); //!!!!!!!!!!!!145 instead of 1800  
+#else  
+    TibiaAngle1[LegIKLegNr] = -(900-(long)AngleRad4*180/3141);
+#endif
 #endif
 
 #ifdef c4DOF
