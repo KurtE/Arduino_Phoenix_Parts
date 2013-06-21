@@ -80,6 +80,24 @@ Phoenix_Input_RC - A first pass at RC input. I believe this one was for my Hitec
 Phoenix_Input_Serial - This one talks to a serial port and uses the old Lynxmotion Powerpod serial protocol.  So you
 can download that program from Lynxmotion and use their Test program to try it out.
 
+Major Contributors
+==================
+
+Jeroen Janssen [aka Xan] -  The original Phoenix code was written by to run on the Lynxmotion Phoenix 
+(http://www.lynxmotion.com/c-117-phoenix.aspx). It was originally written in Basic for the Basic Atom Pro 28
+processor by Basic Micro.  
+
+Kåre Halvorsen (aka Zenta) -  The Lynxmotion Phoenix was based on the original Phoenix that was developed by
+Him,  and a lot of the software was based off of his earlier Excel spreadsheet (PEP).  More details up on his 
+Project page (http://www.lynxmotion.com/images/html/proj098.htm).
+
+Me - I later ported the code to C/C++ and the Arduino environment and with the help of Kåre and Jeroen hopefully 
+reduced the number of bugs I introduced as part of this port.   
+
+Michael E. Ferguson (lnxfergy up on Trossen) - Arbotix Commander, Ax12...
+
+Bill Porter - PS2 library for Arduino.
+
 
 Again Warning
 =============
