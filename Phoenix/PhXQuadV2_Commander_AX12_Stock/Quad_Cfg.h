@@ -8,8 +8,8 @@
 //Date: June 29, 2013
 //
 //====================================================================
-#ifndef HEX_CFG_H
-#define HEX_CFG_H
+#ifndef QUAD_CFG_H
+#define QUAD_CFG_H
 
 #define QUADMODE            // We are building for quad support...
 #define DBGSerial Serial
@@ -93,8 +93,8 @@
 //#define cVoltagePin  7      // Use our Analog pin jumper here...
 //#define CVADR1      1000  // VD Resistor 1 - reduced as only need ratio... 20K and 4.66K
 //#define CVADR2      233   // VD Resistor 2
-//#define cTurnOffVol  1000     // 10v
-//#define cTurnOnVol   1100     // 11V - optional part to say if voltage goes back up, turn it back on...
+#define cTurnOffVol  1000     // 10v
+#define cTurnOnVol   1100     // 11V - optional part to say if voltage goes back up, turn it back on...
 
 //====================================================================
 #define  DEFAULT_GAIT_SPEED 50  // Default gait speed  - Will depend on what Servos you are using...
@@ -124,37 +124,34 @@
 
 
 //--------------------------------------------------------------------
-//[MIN/MAX ANGLES] - Start off assume same as Phoenix...#define cRRCoxaMin1    -700    //Mechanical limits of the Right Rear Leg, decimals = 1
-#define cXXTibiaMin1    -1500
-#define cXXTibiaMax1    1500
+//[MIN/MAX ANGLES] - Start off assume same as Phoenix...
+#define cRRCoxaMin1    -750
+#define cRRCoxaMax1    750
+#define cRRFemurMin1    -1000
+#define cRRFemurMax1    1000
+#define cRRTibiaMin1    -680
+#define cRRTibiaMax1    1020
 
-#define cRRCoxaMin1    -600
-#define cRRCoxaMax1    900
-#define cRRFemurMin1    -1200
-#define cRRFemurMax1    1200
-#define cRRTibiaMin1    cXXTibiaMin1
-#define cRRTibiaMax1    cXXTibiaMax1
+#define cRFCoxaMin1    -750    //Mechanical limits of the Right Front Leg, decimals = 1
+#define cRFCoxaMax1     750
+#define cRFFemurMin1    -1000
+#define cRFFemurMax1    1000
+#define cRFTibiaMin1    -680
+#define cRFTibiaMax1    1020
 
-#define cRFCoxaMin1    -900    //Mechanical limits of the Right Front Leg, decimals = 1
-#define cRFCoxaMax1     600
-#define cRFFemurMin1    -1200
-#define cRFFemurMax1    1200
-#define cRFTibiaMin1    cXXTibiaMin1
-#define cRFTibiaMax1    cXXTibiaMax1
+#define cLRCoxaMin1    -750    //Mechanical limits of the Left Rear Leg, decimals = 1
+#define cLRCoxaMax1     750
+#define cLRFemurMin1     -1000
+#define cLRFemurMax1     1000
+#define cLRTibiaMin1    -1020
+#define cLRTibiaMax1     680
 
-#define cLRCoxaMin1    -900    //Mechanical limits of the Left Rear Leg, decimals = 1
-#define cLRCoxaMax1     600
-#define cLRFemurMin1     -1200
-#define cLRFemurMax1     1200
-#define cLRTibiaMin1    cXXTibiaMin1
-#define cLRTibiaMax1     cXXTibiaMax1
-
-#define cLFCoxaMin1     -600    //Mechanical limits of the Left Front Leg, decimals = 1
-#define cLFCoxaMax1     900
-#define cLFFemurMin1     -1200
-#define cLFFemurMax1     1200
-#define cLFTibiaMin1    cXXTibiaMin1
-#define cLFTibiaMax1     cXXTibiaMax1
+#define cLFCoxaMin1     -750    //Mechanical limits of the Left Front Leg, decimals = 1
+#define cLFCoxaMax1     750
+#define cLFFemurMin1     -1000
+#define cLFFemurMax1     1000
+#define cLFTibiaMin1    -1020
+#define cLFTibiaMax1     680
 
 //--------------------------------------------------------------------
 //[Joint offsets]
@@ -209,17 +206,17 @@
 
 //--------------------------------------------------------------------
 //[START POSITIONS FEET]
-#define cHexInitXZ	 147
-#define CHexInitXZCos45  110      // COS(45) = .707
-#define CHexInitXZSin45  110      // sin(45) = .707
+#define cHexInitXZ	 130
+#define CHexInitXZCos45  92      // COS(45) = .707
+#define CHexInitXZSin45  92     // sin(45) = .707
 #define CHexInitY	 25       //30
 
 // Lets try some multi leg positions depending on height settings.
 #define CNT_HEX_INITS 2
 #define MAX_BODY_Y  150
 #ifdef DEFINE_HEX_GLOBALS
-const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 134};
-const byte g_abHexMaxBodyY[] PROGMEM = { 20, MAX_BODY_Y};
+const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 110};
+const byte g_abHexMaxBodyY[] PROGMEM = { 30, MAX_BODY_Y};
 #else
 extern const byte g_abHexIntXZ[] PROGMEM;
 extern const byte g_abHexMaxBodyY[] PROGMEM;

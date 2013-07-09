@@ -42,7 +42,6 @@
     #define PSTR(x)  x
 #endif
 
-
 #ifdef USEXBEE
 #include "diyxbee.h"
 #endif
@@ -71,7 +70,7 @@ enum {cRR=0, cRM, cRF, cLR, cLM, cLF, CNT_LEGS};
 
 // BUGBUG: to make Dynamic first pass simpl make it a variable.
 //#define NUM_GAITS    6
-extern  const byte 	NUM_GAITS;
+extern  byte 	NUM_GAITS;
 #define SmDiv    	 4  //"Smooth division" factor for the smooth control function, a value of 3 to 5 is most suitable
 extern void GaitSelect(void);
 extern short SmoothControl (short CtrlMoveInp, short CtrlMoveOut, byte CtrlDivider);
@@ -248,15 +247,21 @@ private:
 // own gaits and/or define which of the standard ones they want.
 //==============================================================================
 typedef struct _PhoenixGait {
-	byte            StepsInGait;         //Number of steps in gait
 	short	 		NomGaitSpeed;		//Nominal speed of the gait
-
-	short           NrLiftedPos;         //Number of positions that a single leg is lifted [1-3]
+	byte            StepsInGait;         //Number of steps in gait
+	byte            NrLiftedPos;         //Number of positions that a single leg is lifted [1-3]
 	byte            FrontDownPos;        //Where the leg should be put down to ground
 	byte            LiftDivFactor;       //Normaly: 2, when NrLiftedPos=5: 4
-	boolean         HalfLiftHeigth;      //If TRUE the outer positions of the ligted legs will be half height    
+	byte            TLDivFactor;         //Number of steps that a leg is on the floor while walking
+	byte	        HalfLiftHeight;      // How high to lift at halfway up.
 
-	short           TLDivFactor;         //Number of steps that a leg is on the floor while walking
+#ifdef QUADMODE
+    // Extra information used in the Quad balance mode
+    word			COGAngleStart1;		 // COG shifting starting angle
+    word			COGAngleStep1;		 // COG Angle Steps in degrees
+    byte			COGRadius;			 // COG Radius; the amount the body shifts
+    boolean 		COGCCW;				 // COG Gait sequence runs counter clock wise
+#endif    
 
 	byte            GaitLegNr[CNT_LEGS]; //Init position of the leg
 } PHOENIXGAIT;

@@ -86,7 +86,7 @@ enum {
 
 #define cTravelDeadZone 4      //The deadzone for the analog input from the remote
 
-#define ARBOTIX_TO  1000        // if we don't get a valid message in this number of mills turn off
+#define ARBOTIX_TO  1250        // if we don't get a valid message in this number of mills turn off
 
 #ifndef XBeeSerial
 SoftwareSerial XBeeSerial(cXBEE_IN, cXBEE_OUT);
@@ -126,6 +126,11 @@ SoftwareSerial XBeeSerial(cXBEE_IN, cXBEE_OUT);
 #define BUT_L6      0x20
 #define BUT_RT      0x40
 #define BUT_LT      0x80
+
+#ifndef MAX_BODY_Y
+#define MAX_BODY_Y 100
+#endif
+
 
 /* the Commander will send out a frame at about 30hz, this class helps decipher the output. */
 class Commander
@@ -256,7 +261,12 @@ void CommanderInputController::ControlInput(void)
   // See if we have a new command available...
   if(command.ReadMsgs() > 0){
     // If we receive a valid message than turn robot on...
-    g_InControlState.fRobotOn = true;
+    boolean fAdjustLegPositions = false;
+
+    if (!g_InControlState.fRobotOn ) {
+        g_InControlState.fRobotOn = true;
+        fAdjustLegPositions = true;
+    }
 
     // [SWITCH MODES]
 
@@ -292,6 +302,7 @@ void CommanderInputController::ControlInput(void)
         g_BodyYOffset = 0;
       else
         g_BodyYOffset = 35;
+      fAdjustLegPositions = true;
     }
 
     // We will use L6 with the Right joystick to control both body offset as well as Speed...
@@ -301,19 +312,23 @@ void CommanderInputController::ControlInput(void)
     if (command.buttons & BUT_L6 ) {
       // raise or lower the robot on the joystick up /down
       // Maybe should have Min/Max
-      g_BodyYOffset += command.leftV/25;
+      int delta = command.leftV/25;   
+      if (delta) {
+        g_BodyYOffset = max(min(g_BodyYOffset + delta, MAX_BODY_Y), 0);
+        fAdjustLegPositions = true;
+      }
 
       // Likewise for Speed control
-      int dspeed = command.leftH / 16;   // 
-      if ((dspeed < 0) && g_InControlState.SpeedControl) {
-        if ((word)(-dspeed) <  g_InControlState.SpeedControl)
-          g_InControlState.SpeedControl += dspeed;
+      delta = command.leftH / 16;   // 
+      if ((delta < 0) && g_InControlState.SpeedControl) {
+        if ((word)(-delta) <  g_InControlState.SpeedControl)
+          g_InControlState.SpeedControl += delta;
         else 
           g_InControlState.SpeedControl = 0;
         MSound( 1, 50, 1000+g_InControlState.SpeedControl);  
       }
-      if ((dspeed > 0) && (g_InControlState.SpeedControl < 2000)) {
-        g_InControlState.SpeedControl += dspeed;
+      if ((delta > 0) && (g_InControlState.SpeedControl < 2000)) {
+        g_InControlState.SpeedControl += delta;
         if (g_InControlState.SpeedControl > 2000)
           g_InControlState.SpeedControl = 2000;
         MSound( 1, 50, 1000+g_InControlState.SpeedControl); 
@@ -470,6 +485,8 @@ void CommanderInputController::ControlInput(void)
 
     //Calculate g_InControlState.BodyPos.y
     g_InControlState.BodyPos.y = max(g_BodyYOffset + g_BodyYShift,  0);
+    if (fAdjustLegPositions)
+      AdjustLegPositionsToBodyHeight();    // Put main workings into main program file
 
     // Save away the buttons state as to not process the same press twice.
     buttonsPrev = command.buttons;

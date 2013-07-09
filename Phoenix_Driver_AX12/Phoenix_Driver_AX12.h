@@ -87,7 +87,7 @@ boolean g_fServosFree;    // Are the servos in a free state?
 
 
 // Not sure if pragma needed or not...
-#pragma pack(1)
+//#pragma pack(1)
 typedef struct {
   byte  bSeqNum;       // the sequence number, used to verify
   byte  bCntServos;    // count of servos
@@ -165,7 +165,7 @@ word ServoDriver::GetBatteryVoltage(void) {
 #define VOLTAGE_MAX_TIME_BETWEEN_CALLS 500    // call at least twice a second...
 
 word g_wLastVoltage = 0xffff;    // save the last voltage we retrieved...
-
+byte g_bLegVoltage = 0;		// what leg did we last check?
 unsigned long g_ulTimeLastBatteryVoltage;
 
 word ServoDriver::GetBatteryVoltage(void) {
@@ -174,11 +174,15 @@ word ServoDriver::GetBatteryVoltage(void) {
 
   register uint8_t bLoopCnt = VOLTAGE_REPEAT_MAX;
   do {
-    register word wVoltage = ax12GetRegister (1, AX_PRESENT_VOLTAGE, 1);
+    // Lets cycle through the Tibia servos asking for voltages as they may be the ones doing the most
+    // work...
+    register word wVoltage = ax12GetRegister (pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+g_bLegVoltage]), AX_PRESENT_VOLTAGE, 1);
+	if (++g_bLegVoltage >= CNT_LEGS)
+		g_bLegVoltage = 0;
     if (wVoltage != 0xffff) {
-      g_ulTimeLastBatteryVoltage = millis();
-      g_wLastVoltage = wVoltage * 10;
-      return g_wLastVoltage;
+        g_ulTimeLastBatteryVoltage = millis();
+        g_wLastVoltage = wVoltage * 10;
+        return g_wLastVoltage;
     }
   } 
   while (--bLoopCnt);
@@ -717,6 +721,7 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
     DoPyPose(++psz);
   }
 #endif
+   return false;
 
 }
 #endif    
@@ -806,20 +811,20 @@ void DoPyPose(byte *psz)
   byte index = 0;   // index in param buffer
   word wPoseIndex;
 
-  int checksum;              // checksum
+  int checksum = 0;              // checksum
 
 
     //  pose and sequence storage
   // Put on diet - convert int to short plus convert poses from 2 dimensions to 1 dimension...
   //
   byte seqPos;                // step in current sequence
-  word wMY;
 
   // See if the user gave us a string to process.  If so it should be the XBEE DL to talk to. 
   // BUGBUG:: if using our XBEE stuff could default to debug terminal... 
 #ifdef USEXBEE
 
 #ifdef DBGSerial
+  word wMY;
   wMY = GetXBeeHVal('M', 'Y');
 
   DBGSerial.print(F("My: "));
@@ -1039,7 +1044,6 @@ void DoPyPose(byte *psz)
               int i;
               // pass thru
               if(ins == AX_READ_DATA){
-                int i;
                 ax12GetRegister(id, g_bParams[0], g_bParams[1]);
                 // return a packet: FF FF id Len Err params check
                 if(ax_rx_buffer[3] > 0){
@@ -1087,7 +1091,6 @@ void EEPROMWriteData(word wStart, uint8_t *pv, byte cnt) {
 boolean PyPoseSaveToEEPROM(byte bSeqNum) {
   //first verify it is in range...
   byte iSeq;
-  word wDataStart;
   word w;
   word wHeaderStart;
   EEPromPoseHeader eepph; 
