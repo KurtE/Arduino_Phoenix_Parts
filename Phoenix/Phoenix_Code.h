@@ -259,6 +259,11 @@ const short cOffsetZ[] PROGMEM = {
 const short cCoxaAngle1[] PROGMEM = {
   cRRCoxaAngle1, cRMCoxaAngle1, cRFCoxaAngle1, cLRCoxaAngle1, cLMCoxaAngle1, cLFCoxaAngle1};
 
+#ifdef cRRInitCoxaAngle1    // We can set different angles for the legs than just where they servo horns are set...
+const short cCoxaInitAngle1[] PROGMEM = {
+  cRRInitCoxaAngle1, cRMInitCoxaAngle1, cRFInitCoxaAngle1, cLRInitCoxaAngle1, cLMInitCoxaAngle1, cLFInitCoxaAngle1};
+#endif
+
 //Start positions for the leg
 const short cInitPosX[] PROGMEM = {
   cRRInitPosX, cRMInitPosX, cRFInitPosX, cLRInitPosX, cLMInitPosX, cLFInitPosX};
@@ -364,6 +369,12 @@ const short cOffsetZ[] PROGMEM = {
 //Default leg angle
 const short cCoxaAngle1[] PROGMEM = {
   cRRCoxaAngle1, cRFCoxaAngle1, cLRCoxaAngle1, cLFCoxaAngle1};
+
+#ifdef cRRInitCoxaAngle1    // We can set different angles for the legs than just where they servo horns are set...
+const short cCoxaInitAngle1[] PROGMEM = {
+  cRRInitCoxaAngle1, cRFInitCoxaAngle1, cLRInitCoxaAngle1, cLFInitCoxaAngle1};
+#endif
+
 
 //Start positions for the leg
 const short cInitPosX[] PROGMEM = {
@@ -483,48 +494,86 @@ short			BalancePercentage = 100;		// what percentage of the balance should we us
 byte            PrevSelectedLeg;
 boolean         AllDown;
 
-//[gait]
-PHOENIXGAIT     g_gaitCur;            // Definition of the current gait
-
-//short			g_gaitCur.NomGaitSpeed;		//Nominal speed of the gait
-//short           g_gaitCur.TLDivFactor;        //Number of steps that a leg is on the floor while walking
-//short           g_gaitCur.NrLiftedPos;        //Number of positions that a single leg is lifted [1-3]
-//byte            g_gaitCur.LiftDivFactor;      //Normaly: 2, when g_gaitCur.NrLiftedPos=5: 4
-
-//byte 	        g_gaitCur.HalfLiftHeight;     //If TRUE the outer positions of the ligted legs will be half height    
-
-//byte 			g_gaitCur.FrontDownPos;		    // Where the leg should be put down to ground
-
-//word			COGAngleStart1;		    // COG shifting starting angle
-//word			COGAngleStep1;		    // COG Angle Steps in degrees
-//byte			COGRadius;			    // COG Radius; the amount the body shifts
-//boolean 		COGCCW;				    // COG Gait sequence runs counter clock wise
-
+//[gait - State]
+// Note: Information about the current gait is now part of the g_InControlState...
 boolean         TravelRequest;          //Temp to check if the gait is in motion
 byte            GaitStep;            	//Actual Gait step
-
-//byte            g_gaitCur.GaitLegNr[CNT_LEGS];    //Init position of the leg
-
-//byte            g_gaitCur.GaitLegNrIn;         		//Input Number of the leg
 
 long            GaitPosX[CNT_LEGS];         //Array containing Relative X position corresponding to the Gait
 long            GaitPosY[CNT_LEGS];         //Array containing Relative Y position corresponding to the Gait
 long            GaitPosZ[CNT_LEGS];         //Array containing Relative Z position corresponding to the Gait
 long            GaitRotY[CNT_LEGS];         //Array containing Relative Y rotation corresponding to the Gait
 
-#ifdef XXX
-byte			GaitBalPercent[CNT_LEGS];	// Array containg how much each legs position should weigh in the Dynamic Balance...
-long			TotGaitBalPercent;			// Our total gait percentage...
-#else
-boolean			GaitLegInAir[CNT_LEGS];		// True if leg is in the air
-byte			GaitNextLeg;				// The next leg which will be lifted
-#endif
+//boolean			GaitLegInAir[CNT_LEGS];		// True if leg is in the air
+//byte			GaitNextLeg;				// The next leg which will be lifted
+
 boolean         fWalking;            //  True if the robot are walking
 byte            bExtraCycle;          // Forcing some extra timed cycles for avoiding "end of gait bug"
 #define         cGPlimit 2           // GP=GaitPos testing different limits
 
 boolean        g_fRobotUpsideDown;    // Is the robot upside down?
 boolean        fRobotUpsideDownPrev;
+//=============================================================================
+// Define our default standard Gaits
+//=============================================================================
+#ifndef DEFAULT_GAIT_SPEED
+#define DEFAULT_GAIT_SPEED 50
+#define DEFAULT_SLOW_GAIT 70
+#endif
+
+//cRR=0, cRF, cLR, cLF, CNT_LEGS};
+
+#ifndef OVERWRITE_GAITS
+#ifndef QUADMODE
+//  Speed, Steps, Lifted, Front Down, Lifted Factor, Half Height, On Ground, 
+//     Quad extra: COGAngleStart, COGAngleStep, CogRadius, COGCCW
+//                      { RR, <RM> RF, LR, <LM>, LF}
+#ifdef DISPLAY_GAIT_NAMES
+extern "C" {
+  // Move the Gait Names to program space...
+  const char s_szGN1[] PROGMEM = "Ripple 12";
+  const char s_szGN2[] PROGMEM = "Tripod 8";
+  const char s_szGN3[] PROGMEM = "Tripple 12";
+  const char s_szGN4[] PROGMEM = "Tripple 16";
+  const char s_szGN5[] PROGMEM = "Wave 24";
+  const char s_szGN6[] PROGMEM = "Tripod 6";
+};  
+#endif
+
+PHOENIXGAIT APG[] = { 
+    {DEFAULT_SLOW_GAIT, 12, 3, 2, 2, 8, 3, {7, 11, 3, 1, 5, 9} GATENAME(s_szGN1)},        // Ripple 12
+    {DEFAULT_SLOW_GAIT, 8, 3, 2, 2, 4, 3, {1, 5, 1, 5, 1, 5} GATENAME(s_szGN2)},           //Tripod 8 steps
+    {DEFAULT_GAIT_SPEED, 12, 3, 2, 2, 8, 3, {5, 10, 3, 11, 4, 9} GATENAME(s_szGN3) },      //Triple Tripod 12 step
+    {DEFAULT_GAIT_SPEED, 16, 5, 3, 4, 10, 1, {6, 13, 4, 14, 5, 12} GATENAME(s_szGN4)},    // Triple Tripod 16 steps, use 5 lifted positions
+    {DEFAULT_SLOW_GAIT, 24, 3, 2, 2, 20, 3, {13, 17, 21, 1, 5, 9} GATENAME(s_szGN5)},     //Wave 24 steps
+    {DEFAULT_GAIT_SPEED, 6, 2, 1, 2, 4, 1, {1, 4, 1, 4, 1, 4} GATENAME(s_szGN6)}          //Tripod 6 steps
+};    
+
+#else
+#ifdef DISPLAY_GAIT_NAMES
+extern "C" {
+  // Move the Gait Names to program space...
+  const char s_szGN1[] PROGMEM = "Ripple 12";
+  const char s_szGN2[] PROGMEM = "Tripod 8";
+}
+#endif
+PHOENIXGAIT APG[] = { 
+    {DEFAULT_GAIT_SPEED, 16, 3, 2, 2, 12, 3, 2250, 3600/16, 30, true, {5, 9, 1, 13} GATENAME(s_szGN1)},            // Wave 16
+    {1, 28, 3, 2, 2, 24, 3, 2250, 3600/28, 30, true, {8, 15, 1, 22} GATENAME(s_szGN2)}                             // Wave 28?
+};    
+
+#endif
+#endif
+//--------------------------------------------------------------------
+
+#ifdef ADD_GAITS
+byte NUM_GAITS = sizeof(APG)/sizeof(APG[0]) + sizeof(APG_EXTRA)/sizeof(APG_EXTRA[0]);
+#else
+byte NUM_GAITS = sizeof(APG)/sizeof(APG[0]);
+#endif
+
+
+
 //=============================================================================
 // Function prototypes
 //=============================================================================
@@ -538,7 +587,7 @@ extern void CheckAngles();
 extern void    PrintSystemStuff(void);            // Try to see why we fault...
 
 
-extern void  GaitGetNextLeg(byte GaitStep);
+//extern void  GaitGetNextLeg(byte GaitStep);
 extern void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr);
 extern void BodyFK (short PosX, short PosZ, short PosY, short RotationY, byte BodyIKLeg) ;
 extern void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegNr);
@@ -642,6 +691,7 @@ void setup(){
 void loop(void)
 {
   //Start time
+  unsigned long lTimeWaitEnd;
   lTimerStart = millis(); 
   DoBackgroundProcess();
   //Read input
@@ -727,14 +777,13 @@ void loop(void)
 
       DoBackgroundProcess();
       BalCalcOneLeg (-LegPosX[LegIndex]+GaitPosX[LegIndex], LegPosZ[LegIndex]+GaitPosZ[LegIndex], 
-      (LegPosY[LegIndex]-(short)pgm_read_word(&cInitPosY[LegIndex]))+GaitPosY[LegIndex], LegIndex);
+          (LegPosY[LegIndex]-(short)pgm_read_word(&cInitPosY[LegIndex]))+GaitPosY[LegIndex], LegIndex);
     }
 
     for (LegIndex = (CNT_LEGS/2); LegIndex < CNT_LEGS; LegIndex++) {    // balance calculations for all Right legs
       DoBackgroundProcess();
-      BalCalcOneLeg(LegPosX[LegIndex]+GaitPosX[LegIndex], 
-      LegPosZ[LegIndex]+GaitPosZ[LegIndex], 
-      (LegPosY[LegIndex]-(short)pgm_read_word(&cInitPosY[LegIndex]))+GaitPosY[LegIndex], LegIndex);
+      BalCalcOneLeg(LegPosX[LegIndex]+GaitPosX[LegIndex], LegPosZ[LegIndex]+GaitPosZ[LegIndex], 
+          (LegPosY[LegIndex]-(short)pgm_read_word(&cInitPosY[LegIndex]))+GaitPosY[LegIndex], LegIndex);
     }
     BalanceBody();
   }
@@ -797,7 +846,7 @@ void loop(void)
     //Calculate Servo Move time
     if ((abs(g_InControlState.TravelLength.x)>cTravelDeadZone) || (abs(g_InControlState.TravelLength.z)>cTravelDeadZone) ||
       (abs(g_InControlState.TravelLength.y*2)>cTravelDeadZone)) {         
-      ServoMoveTime = g_gaitCur.NomGaitSpeed + (g_InControlState.InputTimeDelay*2) + g_InControlState.SpeedControl;
+      ServoMoveTime = g_InControlState.gaitCur.NomGaitSpeed + (g_InControlState.InputTimeDelay*2) + g_InControlState.SpeedControl;
 
       //Add aditional delay when Balance mode is on
       if (g_InControlState.BalanceMode)
@@ -822,12 +871,11 @@ void loop(void)
         || (GaitPosZ[LegIndex] > cGPlimit) || (GaitPosZ[LegIndex] < -cGPlimit) 
         || (GaitRotY[LegIndex] > cGPlimit) || (GaitRotY[LegIndex] < -cGPlimit))    {
 
-        bExtraCycle = g_gaitCur.NrLiftedPos + 1;//For making sure that we are using timed move until all legs are down
+        bExtraCycle = g_InControlState.gaitCur.NrLiftedPos + 1;//For making sure that we are using timed move until all legs are down
         break;
       }
     }
     if (bExtraCycle>0){ 
-      unsigned long lTimeWaitEnd;
       bExtraCycle--;
       fWalking = !(bExtraCycle==0);
 
@@ -884,8 +932,14 @@ void loop(void)
       MSound(3, 100, 2500, 80, 2250, 60, 2000);
 #ifdef USEXBEE            
       XBeePlaySounds(3, 100, 2500, 80, 2250, 60, 2000);
-#endif            
-      delay(600);
+#endif    
+      lTimeWaitEnd = millis() + 600;    // setup to process background stuff while we wait...
+      do {
+        // Wait the appropriate time, call any background process while waiting...
+        DoBackgroundProcess();
+      } 
+      while (millis() < lTimeWaitEnd);
+      //delay(600);
     } 
     else {
       g_ServoDriver.FreeServos();
@@ -1055,43 +1109,6 @@ void SingleLegControl(void)
   }
 }
 
-#ifndef DEFAULT_GAIT_SPEED
-#define DEFAULT_GAIT_SPEED 50
-#define DEFAULT_SLOW_GAIT 70
-#endif
-
-//cRR=0, cRF, cLR, cLF, CNT_LEGS};
-
-#ifndef OVERWRITE_GAITS
-#ifndef QUADMODE
-//  Speed, Steps, Lifted, Front Down, Lifted Factor, Half Height, On Ground, 
-//     Quad extra: COGAngleStart, COGAngleStep, CogRadius, COGCCW
-//                      { RR, <RM> RF, LR, <LM>, LF}
-PHOENIXGAIT APG[] = { 
-    {DEFAULT_SLOW_GAIT, 12, 3, 2, 2, 8, 3, {7, 11, 3, 1, 5, 9}},        // Ripple 12
-    {DEFAULT_SLOW_GAIT, 8, 3, 2, 2, 4, 3, {1, 5, 1, 5, 1, 5}},           //Tripod 8 steps
-    {DEFAULT_GAIT_SPEED, 12, 3, 2, 2, 8, 3, {5, 10, 3, 11, 4, 9}},      //Triple Tripod 12 step
-    {DEFAULT_GAIT_SPEED, 16, 5, 3, 4, 10, 1, {6, 13, 4, 14, 5, 12}},    // Triple Tripod 16 steps, use 5 lifted positions
-    {DEFAULT_SLOW_GAIT, 24, 3, 2, 2, 20, 3, {13, 17, 21, 1, 5, 9}},     //Wave 24 steps
-    {DEFAULT_GAIT_SPEED, 6, 2, 1, 2, 4, 1, {1, 4, 1, 4, 1, 4}}          //Tripod 6 steps
-};    
-
-#else
-PHOENIXGAIT APG[] = { 
-    {DEFAULT_GAIT_SPEED, 16, 3, 2, 2, 12, 3, 2250, 3600/16, 30, true, {5, 9, 1, 13}},            // Wave 16
-    {1, 28, 3, 2, 2, 24, 3, 2250, 3600/28, 30, true, {8, 15, 1, 22}}                             // Wave 28?
-};    
-
-#endif
-#endif
-//--------------------------------------------------------------------
-
-#ifdef ADD_GAITS
-byte NUM_GAITS = sizeof(APG)/sizeof(APG[0]) + sizeof(APG_EXTRA)/sizeof(APG_EXTRA[0]);
-#else
-byte NUM_GAITS = sizeof(APG)/sizeof(APG[0]);
-#endif
-
 
 void GaitSelect(void)
 {
@@ -1100,11 +1117,11 @@ void GaitSelect(void)
   if (g_InControlState.GaitType < NUM_GAITS) {
 #ifdef ADD_GAITS
     if (g_InControlState.GaitType < (sizeof(APG_EXTRA)/sizeof(APG_EXTRA[0])))
-        g_gaitCur = APG_EXTRA[g_InControlState.GaitType];
+        g_InControlState.gaitCur = APG_EXTRA[g_InControlState.GaitType];
     else
-        g_gaitCur = APG[g_InControlState.GaitType - (sizeof(APG_EXTRA)/sizeof(APG_EXTRA[0]))];
+        g_InControlState.gaitCur = APG[g_InControlState.GaitType - (sizeof(APG_EXTRA)/sizeof(APG_EXTRA[0]))];
 #else
-    g_gaitCur = APG[g_InControlState.GaitType];
+    g_InControlState.gaitCur = APG[g_InControlState.GaitType];
 #endif
   }
 
@@ -1112,22 +1129,22 @@ void GaitSelect(void)
   if (g_fDebugOutput) {
     DBGSerial.print(g_InControlState.GaitType, DEC);
     DBGSerial.print("    {");
-  	DBGSerial.print(g_gaitCur.NomGaitSpeed, DEC);
+  	DBGSerial.print(g_InControlState.gaitCur.NomGaitSpeed, DEC);
     DBGSerial.print(", ");
-	DBGSerial.print(g_gaitCur.StepsInGait, DEC); 
+	DBGSerial.print(g_InControlState.gaitCur.StepsInGait, DEC); 
     DBGSerial.print(", ");
-	DBGSerial.print(g_gaitCur.NrLiftedPos, DEC); 
+	DBGSerial.print(g_InControlState.gaitCur.NrLiftedPos, DEC); 
     DBGSerial.print(", ");
-	DBGSerial.print(g_gaitCur.FrontDownPos, DEC);
+	DBGSerial.print(g_InControlState.gaitCur.FrontDownPos, DEC);
     DBGSerial.print(", ");
-	DBGSerial.print(g_gaitCur.LiftDivFactor, DEC);
+	DBGSerial.print(g_InControlState.gaitCur.LiftDivFactor, DEC);
     DBGSerial.print(", ");
-	DBGSerial.print(g_gaitCur.TLDivFactor, DEC);  
+	DBGSerial.print(g_InControlState.gaitCur.TLDivFactor, DEC);  
     DBGSerial.print(", ");
-	DBGSerial.print(g_gaitCur.HalfLiftHeight, DEC); 
+	DBGSerial.print(g_InControlState.gaitCur.HalfLiftHeight, DEC); 
     DBGSerial.print(", {");
     for (int il = 0; il < CNT_LEGS; il++) {
-        DBGSerial.print(g_gaitCur.GaitLegNr[il], DEC);
+        DBGSerial.print(g_InControlState.gaitCur.GaitLegNr[il], DEC);
         if (il < (CNT_LEGS-1))
             DBGSerial.print(", ");
     }
@@ -1155,11 +1172,11 @@ void GaitSeq(void)
 #ifdef QUADCODE
 		// just start walking - Try to guess a good foot to start off on...
 		if (g_InControlState.TravelLength.z < 0) 
-			GaitStep = ((g_InControlState.TravelLength.X < 0)? g_gaitCur.GaitLegNr[cLR] : g_gaitCur.GaitLegNr[cRR]);
+			GaitStep = ((g_InControlState.TravelLength.X < 0)? g_InControlState.gaitCur.GaitLegNr[cLR] : g_InControlState.gaitCur.GaitLegNr[cRR]);
 		else 
-			GaitStep = ((g_InControlState.TravelLength.X < 0)? g_gaitCur.GaitLegNr[cLF] : g_gaitCur.GaitLegNr[cRF]);
+			GaitStep = ((g_InControlState.TravelLength.X < 0)? g_InControlState.gaitCur.GaitLegNr[cLF] : g_InControlState.gaitCur.GaitLegNr[cRF]);
 		// And lets backup a few Gaitsteps before this to allow it to start the up swing... 
-		GaitStep = ((GaitStep > g_gaitCur.FrontDownPos)? (GaitStep - g_gaitCur.FrontDownPos) : (GaitStep + g_gaitCur.StepsInGait - g_gaitCur.FrontDownPos);
+		GaitStep = ((GaitStep > g_InControlState.gaitCur.FrontDownPos)? (GaitStep - g_InControlState.gaitCur.FrontDownPos) : (GaitStep + g_InControlState.gaitCur.StepsInGait - g_InControlState.gaitCur.FrontDownPos);
 #endif		
     }
     else {    //Clear values under the cTravelDeadZone
@@ -1176,7 +1193,7 @@ void GaitSeq(void)
 
   //Advance to the next step
   GaitStep++;
-  if (GaitStep>g_gaitCur.StepsInGait)
+  if (GaitStep>g_InControlState.gaitCur.StepsInGait)
     GaitStep = 1;
 
   // If we have a force count decrement it now... 
@@ -1191,118 +1208,79 @@ void Gait (byte GaitCurrentLegNr)
 {
 
   // Try to reduce the number of time we look at GaitLegnr and Gaitstep
-  short int LegStep = GaitStep - g_gaitCur.GaitLegNr[GaitCurrentLegNr];
+  short int LegStep = GaitStep - g_InControlState.gaitCur.GaitLegNr[GaitCurrentLegNr];
 
   //Leg middle up position OK
   //Gait in motion	                                                                                  
   // For Lifted pos = 1, 3, 5
-  if ((TravelRequest && (g_gaitCur.NrLiftedPos&1) && 
+  if ((TravelRequest && (g_InControlState.gaitCur.NrLiftedPos&1) && 
     LegStep==0) || (!TravelRequest && LegStep==0 && ((abs(GaitPosX[GaitCurrentLegNr])>2) || 
     (abs(GaitPosZ[GaitCurrentLegNr])>2) || (abs(GaitRotY[GaitCurrentLegNr])>2)))) { //Up
     GaitPosX[GaitCurrentLegNr] = 0;
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight;
     GaitPosZ[GaitCurrentLegNr] = 0;
     GaitRotY[GaitCurrentLegNr] = 0;
-//	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
-	GaitLegInAir[GaitCurrentLegNr] = true;
+//	GaitLegInAir[GaitCurrentLegNr] = true;
   }
   //Optional Half heigth Rear (2, 3, 5 lifted positions)
-  else if (((g_gaitCur.NrLiftedPos==2 && LegStep==0) || (g_gaitCur.NrLiftedPos>=3 && 
-    (LegStep==-1 || LegStep==(g_gaitCur.StepsInGait-1))))
+  else if (((g_InControlState.gaitCur.NrLiftedPos==2 && LegStep==0) || (g_InControlState.gaitCur.NrLiftedPos>=3 && 
+    (LegStep==-1 || LegStep==(g_InControlState.gaitCur.StepsInGait-1))))
     && TravelRequest) {
-    GaitPosX[GaitCurrentLegNr] = -g_InControlState.TravelLength.x/g_gaitCur.LiftDivFactor;
-    GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+g_gaitCur.HalfLiftHeight);     //Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
-    GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/g_gaitCur.LiftDivFactor;
-    GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/g_gaitCur.LiftDivFactor;
-//	GaitBalPercent[GaitCurrentLegNr] = 0;	// Don't include in the balance calculation...
-	GaitLegInAir[GaitCurrentLegNr] = true;
+    GaitPosX[GaitCurrentLegNr] = -g_InControlState.TravelLength.x/g_InControlState.gaitCur.LiftDivFactor;
+    GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+g_InControlState.gaitCur.HalfLiftHeight);     //Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
+    GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/g_InControlState.gaitCur.LiftDivFactor;
+    GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/g_InControlState.gaitCur.LiftDivFactor;
+//	GaitLegInAir[GaitCurrentLegNr] = true;
   }    
   // _A_	  
   // Optional Half heigth front (2, 3, 5 lifted positions)
-  else if ((g_gaitCur.NrLiftedPos>=2) && (LegStep==1 || LegStep==-(g_gaitCur.StepsInGait-1)) && TravelRequest) {
-    GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/g_gaitCur.LiftDivFactor;
-    GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+g_gaitCur.HalfLiftHeight); // Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
-    GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/g_gaitCur.LiftDivFactor;
-    GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/g_gaitCur.LiftDivFactor;
-//	GaitBalPercent[GaitCurrentLegNr] = 25;	// Leg part way through move, cycling toward down...
-	GaitLegInAir[GaitCurrentLegNr] = true;
+  else if ((g_InControlState.gaitCur.NrLiftedPos>=2) && (LegStep==1 || LegStep==-(g_InControlState.gaitCur.StepsInGait-1)) && TravelRequest) {
+    GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/g_InControlState.gaitCur.LiftDivFactor;
+    GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+g_InControlState.gaitCur.HalfLiftHeight); // Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
+    GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/g_InControlState.gaitCur.LiftDivFactor;
+    GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/g_InControlState.gaitCur.LiftDivFactor;
+//	GaitLegInAir[GaitCurrentLegNr] = true;
   }
 
   //Optional Half heigth Rear 5 LiftedPos (5 lifted positions)
-  else if (((g_gaitCur.NrLiftedPos==5 && (LegStep==-2 ))) && TravelRequest) {
+  else if (((g_InControlState.gaitCur.NrLiftedPos==5 && (LegStep==-2 ))) && TravelRequest) {
     GaitPosX[GaitCurrentLegNr] = -g_InControlState.TravelLength.x/2;
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/2;
-//	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg starting up...
-	GaitLegInAir[GaitCurrentLegNr] = true;
+//	GaitLegInAir[GaitCurrentLegNr] = true;
   }  		
 
   //Optional Half heigth Front 5 LiftedPos (5 lifted positions)
-  else if ((g_gaitCur.NrLiftedPos==5) && (LegStep==2 || LegStep==-(g_gaitCur.StepsInGait-2)) && TravelRequest) {
+  else if ((g_InControlState.gaitCur.NrLiftedPos==5) && (LegStep==2 || LegStep==-(g_InControlState.gaitCur.StepsInGait-2)) && TravelRequest) {
     GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/2;
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;
-//	GaitBalPercent[GaitCurrentLegNr] = 50;	// Leg part way through move, cycling toward down...
-	GaitLegInAir[GaitCurrentLegNr] = true;
+//	GaitLegInAir[GaitCurrentLegNr] = true;
   }
   //_B_
   //Leg front down position //bug here?  From _A_ to _B_ there should only be one gaitstep, not 2!
   //For example, where is the case of LegStep==0+2 executed when NRLiftedPos=3?
-  else if ((LegStep==g_gaitCur.FrontDownPos || LegStep==-(g_gaitCur.StepsInGait-g_gaitCur.FrontDownPos)) && GaitPosY[GaitCurrentLegNr]<0) {
+  else if ((LegStep==g_InControlState.gaitCur.FrontDownPos || LegStep==-(g_InControlState.gaitCur.StepsInGait-g_InControlState.gaitCur.FrontDownPos)) && GaitPosY[GaitCurrentLegNr]<0) {
     GaitPosX[GaitCurrentLegNr] = g_InControlState.TravelLength.x/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;      	
     GaitPosY[GaitCurrentLegNr] = 0;	
-//	GaitBalPercent[GaitCurrentLegNr] = TravelRequest?50 : 100;	// Leg moving to down position...
-	GaitLegInAir[GaitCurrentLegNr] = true;
-	GaitGetNextLeg(GaitStep);	// Figure out which leg will lift next
+//	GaitLegInAir[GaitCurrentLegNr] = true;
+//	GaitGetNextLeg(GaitStep);	// Figure out which leg will lift next
   }
 
   //Move body forward      
   else {
-    GaitPosX[GaitCurrentLegNr] = GaitPosX[GaitCurrentLegNr] - (g_InControlState.TravelLength.x/(short)g_gaitCur.TLDivFactor);
+    GaitPosX[GaitCurrentLegNr] = GaitPosX[GaitCurrentLegNr] - (g_InControlState.TravelLength.x/(short)g_InControlState.gaitCur.TLDivFactor);
     GaitPosY[GaitCurrentLegNr] = 0; 
-    GaitPosZ[GaitCurrentLegNr] = GaitPosZ[GaitCurrentLegNr] - (g_InControlState.TravelLength.z/(short)g_gaitCur.TLDivFactor);
-    GaitRotY[GaitCurrentLegNr] = GaitRotY[GaitCurrentLegNr] - (g_InControlState.TravelLength.y/(short)g_gaitCur.TLDivFactor);
-	GaitLegInAir[GaitCurrentLegNr] = false;
+    GaitPosZ[GaitCurrentLegNr] = GaitPosZ[GaitCurrentLegNr] - (g_InControlState.TravelLength.z/(short)g_InControlState.gaitCur.TLDivFactor);
+    GaitRotY[GaitCurrentLegNr] = GaitRotY[GaitCurrentLegNr] - (g_InControlState.TravelLength.y/(short)g_InControlState.gaitCur.TLDivFactor);
+//	GaitLegInAir[GaitCurrentLegNr] = false;
   }
 
 }  
-
-//--------------------------------------------------------------------
-//[BALGETNEXTLEG] Get the legNr of the next leg which will be lifted
-void  GaitGetNextLeg(byte GaitStep) {
-
-	byte NextLegIndex;
-	boolean GaitNextLegFound = false;
-
-	//Find Next leg in gait sequence 
-	for (NextLegIndex = 0; NextLegIndex <  CNT_LEGS; NextLegIndex++) {
-		if (g_gaitCur.GaitLegNr[NextLegIndex] > GaitStep) {
-			if (GaitNextLegFound) {
-				if (g_gaitCur.GaitLegNr[NextLegIndex] < g_gaitCur.GaitLegNr[GaitNextLeg]) {
-					GaitNextLeg = NextLegIndex;
-				}
-			}
-			else {
-				GaitNextLeg = NextLegIndex;
-				GaitNextLegFound = true;
-			}
-		}
-	}	
-
-	//if there is no next, return first leg in gait (lowest nr)
-	if (!GaitNextLegFound) {
-		GaitNextLeg = 0;
-		for (NextLegIndex = 1; NextLegIndex <  CNT_LEGS; NextLegIndex++) {
-			if (g_gaitCur.GaitLegNr[NextLegIndex] < g_gaitCur.GaitLegNr[GaitNextLeg]) {
-				GaitNextLeg = NextLegIndex;
-			}
-		}
-	}	
-}
 
 //--------------------------------------------------------------------
 //[BalCalcOneLeg]
@@ -1312,21 +1290,34 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
   long            CPR_Y;            //Final Y value for centerpoint of rotation
   long            CPR_Z;            //Final Z value for centerpoint of rotation
 
-  //Calculating totals from center of the body to the feet
-  CPR_Z = (short)pgm_read_word(&cOffsetZ[BalLegNr]) + PosZ;
-  CPR_X = (short)pgm_read_word(&cOffsetX[BalLegNr]) + PosX;
-  CPR_Y = 150 + PosY;        // using the value 150 to lower the centerpoint of rotation 'g_InControlState.BodyPos.y +
 
 #ifdef QUADMODE
-  if (g_gaitCur.COGAngleStep1) {  // In Quad mode only do those for those who don't support COG Balance...
+  if (g_InControlState.gaitCur.COGAngleStep1 == 0) {  // In Quad mode only do those for those who don't support COG Balance...
 #endif
       long             lAtan;
+      //Calculating totals from center of the body to the feet
+      CPR_Z = (short)pgm_read_word(&cOffsetZ[BalLegNr]) + PosZ;
+      CPR_X = (short)pgm_read_word(&cOffsetX[BalLegNr]) + PosX;
+      CPR_Y = 150 + PosY;        // using the value 150 to lower the centerpoint of rotation 'g_InControlState.BodyPos.y +
+      
       TotalTransY += (long)PosY;
       TotalTransZ += (long)CPR_Z;
       TotalTransX += (long)CPR_X;
 
       lAtan = GetATan2(CPR_X, CPR_Z);
       TotalYBal1 += (lAtan*1800) / 31415;
+#ifdef DEBUG
+      if (g_fDebugOutput) {
+          DBGSerial.print(" ");
+          DBGSerial.print(CPR_X, DEC);
+          DBGSerial.print(":");
+          DBGSerial.print(CPR_Y, DEC);
+          DBGSerial.print(":");
+          DBGSerial.print(CPR_Z, DEC);
+          DBGSerial.print(":");
+          DBGSerial.print(TotalYBal1, DEC);
+      }    
+#endif
 
       lAtan = GetATan2 (CPR_X, CPR_Y);
       TotalZBal1 += ((lAtan*1800) / 31415) -900; //Rotate balance circle 90 deg
@@ -1344,27 +1335,47 @@ void BalCalcOneLeg (long PosX, long PosZ, long PosY, byte BalLegNr)
 void BalanceBody(void)
 {
 #ifdef QUADMODE
-  if (g_gaitCur.COGAngleStep1) {  // In Quad mode only do those for those who don't support COG Balance...
+  if (g_InControlState.gaitCur.COGAngleStep1 == 0) {  // In Quad mode only do those for those who don't support COG Balance...
 #endif
       TotalTransZ = TotalTransZ/BalanceDivFactor ;
       TotalTransX = TotalTransX/BalanceDivFactor;
       TotalTransY = TotalTransY/BalanceDivFactor;
 
+#ifndef QUADMODE // ??? on PhantomX Hex at no movment YBal1 = 1800, on Quad = 0...  Need to experiment
       if (TotalYBal1 > 0)        //Rotate balance circle by +/- 180 deg
         TotalYBal1 -=  1800;
       else
         TotalYBal1 += 1800;
+#endif        
 
-      if (TotalZBal1 < -1800)    //Compensate for extreme balance positions that causes owerflow
+      if (TotalZBal1 < -1800)    //Compensate for extreme balance positions that causes overflow
         TotalZBal1 += 3600;
 
-      if (TotalXBal1 < -1800)    //Compensate for extreme balance positions that causes owerflow
+      if (TotalXBal1 < -1800)    //Compensate for extreme balance positions that causes overflow
         TotalXBal1 += 3600;
 
       //Balance rotation
       TotalYBal1 = -TotalYBal1/BalanceDivFactor;
       TotalXBal1 = -TotalXBal1/BalanceDivFactor;
       TotalZBal1 = TotalZBal1/BalanceDivFactor;
+#ifdef DEBUG
+      if (g_fDebugOutput) {
+          DBGSerial.print(" L ");
+          DBGSerial.print(BalanceDivFactor, DEC);
+          DBGSerial.print(" TTrans: ");
+          DBGSerial.print(TotalTransX, DEC);
+          DBGSerial.print(" ");
+          DBGSerial.print(TotalTransY, DEC);
+          DBGSerial.print(" ");
+          DBGSerial.print(TotalTransZ, DEC);
+          DBGSerial.print(" TBal: ");
+          DBGSerial.print(TotalXBal1, DEC);
+          DBGSerial.print(" ");
+          DBGSerial.print(TotalYBal1, DEC);
+          DBGSerial.print(" ");
+          DBGSerial.println(TotalZBal1, DEC);
+      }
+#endif
 #ifdef QUADMODE
   } else {  
     // Quad mode with COG balance mode...
@@ -1375,21 +1386,21 @@ void BalanceBody(void)
       long BalTotTravelLength;
 
       COGShiftNeeded = TravelRequest;
-      for (LegIndex = 0; LegIndex <= 3; LegIndex++)
+      for (LegIndex = 0; LegIndex <= CNT_LEGS; LegIndex++)
       {
         // Check if the cog needs to be shifted (travelRequest or legs goto home.)
         COGShiftNeeded = COGShiftNeeded || (abs(GaitPosX[LegIndex])>2) || (abs(GaitPosZ[LegIndex])>2) || (abs(GaitRotY[LegIndex])>2);
       }
 
       if (COGShiftNeeded) {
-        if (g_gaitCur.COGCCW) {
-          COGAngle1 = g_gaitCur.COGAngleStart1 - (GaitStep-1) * g_gaitCur.COGAngleStep1;
+        if (g_InControlState.gaitCur.COGCCW) {
+          COGAngle1 = g_InControlState.gaitCur.COGAngleStart1 - (GaitStep-1) * g_InControlState.gaitCur.COGAngleStep1;
         } else {
-          COGAngle1 = g_gaitCur.COGAngleStart1 + (GaitStep-1) * g_gaitCur.COGAngleStep1;
+          COGAngle1 = g_InControlState.gaitCur.COGAngleStart1 + (GaitStep-1) * g_InControlState.gaitCur.COGAngleStep1;
         }
         GetSinCos(COGAngle1);
-        TotalTransX = (long)g_gaitCur.COGRadius * (long)sin4 / c4DEC;
-        TotalTransZ = (long)g_gaitCur.COGRadius * (long)cos4 / c4DEC;
+        TotalTransX = (long)g_InControlState.gaitCur.COGRadius * (long)sin4 / c4DEC;
+        TotalTransZ = (long)g_InControlState.gaitCur.COGRadius * (long)cos4 / c4DEC;
 	
 #ifdef DEBUG
         if (g_fDebugOutput) {
@@ -1413,7 +1424,7 @@ void BalanceBody(void)
 #ifdef DEBUG
         if (g_fDebugOutput) {
           DBGSerial.print(" COGRadius: ");
-          DBGSerial.print(g_gaitCur.COGRadius, DEC);
+          DBGSerial.print(g_InControlState.gaitCur.COGRadius, DEC);
           DBGSerial.print(" TotalTransX: ");
           DBGSerial.print(TotalTransX, DEC);
           DBGSerial.print(" TotalTransZ: ");
@@ -1759,6 +1770,43 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
   }
 }
 
+//--------------------------------------------------------------------
+//[CHECK ANGLES] Checks the mechanical limits of the servos
+//--------------------------------------------------------------------
+short CheckServoAngleBounds(short sID,  short sVal, const short *sMin PROGMEM, const short *sMax PROGMEM) {
+
+    // Pull into simple function as so I can report errors on debug 
+    // Note ID is bogus, but something to let me know which one.
+    short s = (short)pgm_read_word(sMin);
+    if (sVal < s) {
+#ifdef DEBUG
+      if (g_fDebugOutput) {
+        DBGSerial.print(sID, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(sVal, DEC);
+        DBGSerial.print("<");
+        DBGSerial.println(s, DEC);
+      }
+#endif
+        return s;
+    }
+
+    s = (short)pgm_read_word(sMax);
+    if (sVal > s) {
+#ifdef DEBUG
+      if (g_fDebugOutput) {
+        DBGSerial.print(sID, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(sVal, DEC);
+        DBGSerial.print(">");
+        DBGSerial.println(s, DEC);
+      }
+#endif
+        return s;
+    }
+    return sVal;
+  
+}
 
 //--------------------------------------------------------------------
 //[CHECK ANGLES] Checks the mechanical limits of the servos
@@ -1766,18 +1814,15 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
 void CheckAngles(void)
 {
 
+  short s = 0;      // BUGBUG just some index so we can get a hint who errored out
   for (LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++)
   {
-    CoxaAngle1[LegIndex]  = min(max(CoxaAngle1[LegIndex], (short)pgm_read_word(&cCoxaMin1[LegIndex])), 
-    (short)pgm_read_word(&cCoxaMax1[LegIndex]));
-    FemurAngle1[LegIndex] = min(max(FemurAngle1[LegIndex], (short)pgm_read_word(&cFemurMin1[LegIndex])),
-    (short)pgm_read_word(&cFemurMax1[LegIndex]));
-    TibiaAngle1[LegIndex] = min(max(TibiaAngle1[LegIndex], (short)pgm_read_word(&cTibiaMin1[LegIndex])),
-    (short)pgm_read_word(&cTibiaMax1[LegIndex]));
+    CoxaAngle1[LegIndex]  = CheckServoAngleBounds(s++, CoxaAngle1[LegIndex], &cCoxaMin1[LegIndex], &cCoxaMax1[LegIndex]);
+    FemurAngle1[LegIndex] = CheckServoAngleBounds(s++, FemurAngle1[LegIndex], &cFemurMin1[LegIndex], &cFemurMax1[LegIndex]);
+    TibiaAngle1[LegIndex] = CheckServoAngleBounds(s++, TibiaAngle1[LegIndex], &cTibiaMin1[LegIndex], &cTibiaMax1[LegIndex]);
 #ifdef c4DOF
     if ((byte)pgm_read_byte(&cTarsLength[LegIndex])) {    // We allow mix of 3 and 4 DOF legs...
-      TarsAngle1[LegIndex] = min(max(TarsAngle1[LegIndex], (short)pgm_read_word(&cTarsMin1[LegIndex])),
-      (short)pgm_read_word(&cTarsMax1[LegIndex]));
+      TarsAngle1[LegIndex] = CheckServoAngleBounds(s++, TarsAngle1[LegIndex], &cTarsMin1[LegIndex], &cTarsMax1[LegIndex]);
     }
 #endif
   }
@@ -1835,7 +1880,11 @@ void AdjustLegPositionsToBodyHeight(void)
         DBGSerial.print(")->");
       }
 #endif
+#ifdef cRRInitCoxaAngle1    // We can set different angles for the legs than just where they servo horns are set...
+      GetSinCos((short)pgm_read_word(&cCoxaInitAngle1[LegIndex]));
+#else
       GetSinCos((short)pgm_read_word(&cCoxaAngle1[LegIndex]));
+#endif      
       LegPosX[LegIndex] = ((long)((long)cos4 * XZLength1))/c4DEC;  //Set start positions for each leg
       LegPosZ[LegIndex] = -((long)((long)sin4 * XZLength1))/c4DEC;
 #ifdef DEBUG
@@ -1854,7 +1903,7 @@ void AdjustLegPositionsToBodyHeight(void)
     }
 #endif
     // Make sure we cycle through one gait to have the legs all move into their new locations...
-    g_InControlState.ForceGaitStepCnt = g_gaitCur.StepsInGait;
+    g_InControlState.ForceGaitStepCnt = g_InControlState.gaitCur.StepsInGait;
   }
 #endif // CNT_HEX_INITS
 
@@ -2145,17 +2194,17 @@ void UpdateGaitCmd(byte *pszCmdLine) {
   // first byte can be H for hex or W for words...
   if (!*++pszCmdLine) {  // Need to get past the command letter first...
 	DBGSerial.print("St: ");
-	DBGSerial.print(g_gaitCur.StepsInGait, DEC);
+	DBGSerial.print(g_InControlState.gaitCur.StepsInGait, DEC);
 	DBGSerial.print(" ");
-	DBGSerial.print(g_gaitCur.NrLiftedPos, DEC);
+	DBGSerial.print(g_InControlState.gaitCur.NrLiftedPos, DEC);
 	DBGSerial.print(" ");
-	DBGSerial.print(g_gaitCur.GaitLegNr[cRR], DEC);
+	DBGSerial.print(g_InControlState.gaitCur.GaitLegNr[cRR], DEC);
 	DBGSerial.print(" ");
-	DBGSerial.print(g_gaitCur.GaitLegNr[cRF], DEC);
+	DBGSerial.print(g_InControlState.gaitCur.GaitLegNr[cRF], DEC);
 	DBGSerial.print(" ");
-	DBGSerial.print(g_gaitCur.GaitLegNr[cLR], DEC);
+	DBGSerial.print(g_InControlState.gaitCur.GaitLegNr[cLR], DEC);
 	DBGSerial.print(" ");
-	DBGSerial.println(g_gaitCur.GaitLegNr[cLF], DEC);
+	DBGSerial.println(g_InControlState.gaitCur.GaitLegNr[cLF], DEC);
   }
   else {
 	//Argument should be New percentage
@@ -2166,32 +2215,32 @@ void UpdateGaitCmd(byte *pszCmdLine) {
 	if (wStepsInGait) {
 		if (wLifted) {
 			// UPdated the lifted so lets update some of the gait properties
-			g_gaitCur.NrLiftedPos = wLifted;
-			g_gaitCur.FrontDownPos = (wLifted+1)/2;
-			g_gaitCur.LiftDivFactor = (wLifted > 4)? 4 : 2;
+			g_InControlState.gaitCur.NrLiftedPos = wLifted;
+			g_InControlState.gaitCur.FrontDownPos = (wLifted+1)/2;
+			g_InControlState.gaitCur.LiftDivFactor = (wLifted > 4)? 4 : 2;
 		}
 
 		// Assume the ordering of the gait legs here and equal spaced
-		g_gaitCur.StepsInGait = wStepsInGait;
-		g_gaitCur.TLDivFactor = g_gaitCur.StepsInGait-g_gaitCur.NrLiftedPos;
+		g_InControlState.gaitCur.StepsInGait = wStepsInGait;
+		g_InControlState.gaitCur.TLDivFactor = g_InControlState.gaitCur.StepsInGait-g_InControlState.gaitCur.NrLiftedPos;
 			
 		// See if user did pass in leg positions...
-		g_gaitCur.GaitLegNr[cRR] = GetCmdLineNum(&pszCmdLine);
-		if (g_gaitCur.GaitLegNr[cRR]) {
-			g_gaitCur.GaitLegNr[cRF] = GetCmdLineNum(&pszCmdLine);
-			g_gaitCur.GaitLegNr[cLR] = GetCmdLineNum(&pszCmdLine);
-			g_gaitCur.GaitLegNr[cLF] = GetCmdLineNum(&pszCmdLine);
+		g_InControlState.gaitCur.GaitLegNr[cRR] = GetCmdLineNum(&pszCmdLine);
+		if (g_InControlState.gaitCur.GaitLegNr[cRR]) {
+			g_InControlState.gaitCur.GaitLegNr[cRF] = GetCmdLineNum(&pszCmdLine);
+			g_InControlState.gaitCur.GaitLegNr[cLR] = GetCmdLineNum(&pszCmdLine);
+			g_InControlState.gaitCur.GaitLegNr[cLF] = GetCmdLineNum(&pszCmdLine);
 		}
 		else {
 			wStepsInGait /= 4;	// equal spacing.
-			g_gaitCur.GaitLegNr[cRR] = wStepsInGait / 2;
-			g_gaitCur.GaitLegNr[cRF] = g_gaitCur.GaitLegNr[cRR] + wStepsInGait;
-			g_gaitCur.GaitLegNr[cLR] = g_gaitCur.GaitLegNr[cRF] + wStepsInGait;
-			g_gaitCur.GaitLegNr[cLF] = g_gaitCur.GaitLegNr[cLR] + wStepsInGait;
+			g_InControlState.gaitCur.GaitLegNr[cRR] = wStepsInGait / 2;
+			g_InControlState.gaitCur.GaitLegNr[cRF] = g_InControlState.gaitCur.GaitLegNr[cRR] + wStepsInGait;
+			g_InControlState.gaitCur.GaitLegNr[cLR] = g_InControlState.gaitCur.GaitLegNr[cRF] + wStepsInGait;
+			g_InControlState.gaitCur.GaitLegNr[cLF] = g_InControlState.gaitCur.GaitLegNr[cLR] + wStepsInGait;
 		}
 	
-		//g_gaitCur.HalfLiftHeight = 3;
-		//g_gaitCur.NomGaitSpeed = DEFAULT_GAIT_SPEED;
+		//g_InControlState.gaitCur.HalfLiftHeight = 3;
+		//g_InControlState.gaitCur.NomGaitSpeed = DEFAULT_GAIT_SPEED;
 	}	
   }
 }

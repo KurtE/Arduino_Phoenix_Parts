@@ -67,16 +67,6 @@ DIYPACKET  g_diypPrev;
 unsigned long ulTimeLastReported = 0;
 #endif
 extern "C" {
-  // Move the Gait Names to program space...
-  const char s_sGN1[] PROGMEM = "Ripple 12";
-  const char s_sGN2[] PROGMEM = "Tripod 8";
-  const char s_sGN3[] PROGMEM = "Tripple 12";
-  const char s_sGN4[] PROGMEM = "Tripple 16";
-  const char s_sGN5[] PROGMEM = "Wave 24";
-  const char s_sGN6[] PROGMEM = "Tripod 6";
-  PGM_P s_asGateNames[] PROGMEM = {
-    s_sGN1, s_sGN2, s_sGN3, s_sGN4, s_sGN5, s_sGN6        };
-
   const char s_sLJUDN1[] PROGMEM = "LJOYUD walk";
   const char s_sLJUDN2[] PROGMEM = "LJOYUD trans";
   const char s_sLJUDN3[] PROGMEM = "SetRotOffset";
@@ -332,20 +322,29 @@ void DIYXBeeController::ControlInput(void)
       // BUGBUG:: we are using all keys now, may want to reserve some...  
       //Switch gait
       // We will do slightly different here than the RC version as we have a bit per button
-      if ((bXBeeControlMode==WALKMODE) && iNumButton  && (iNumButton <= NUM_GAITS)) { //1-8 Button Gait select   
-        if ( abs(g_InControlState.TravelLength.x)<cTravelDeadZone &&  abs(g_InControlState.TravelLength.z)<cTravelDeadZone &&  
-          abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone)  {
-          //Switch Gait type
-          MSound( 1, 50, 2000);   //Sound P9, [50\4000]
-          g_InControlState.GaitType = iNumButton-1;
+      if ((bXBeeControlMode==WALKMODE) && iNumButton) { 
+        if (iNumButton <= NUM_GAITS) {              // The Gait number is in the range of the number of gaits defined.
+          if ( abs(g_InControlState.TravelLength.x)<cTravelDeadZone &&  abs(g_InControlState.TravelLength.z)<cTravelDeadZone &&  
+              abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone)  {
+            //Switch Gait type
+            MSound( 1, 50, 2000);   //Sound P9, [50\4000]
+            g_InControlState.GaitType = iNumButton-1;
 #ifdef DEBUG
-          DBGPrintf("New Gate: %d\n\r", g_InControlState.GaitType);
+            DBGPrintf("New Gate: %d\n\r", g_InControlState.GaitType);
 #endif
-          GaitSelect();
+            GaitSelect();
 #ifdef DEBUG
-          DBGPrintf("Output Gate Named\n\r");
+            DBGPrintf("Output Gate Named\n\r");
 #endif
-          XBeeOutputStringF((const __FlashStringHelper *)pgm_read_word(&s_asGateNames[g_InControlState.GaitType]));
+
+#ifdef DISPLAY_GAIT_NAMES
+            XBeeOutputStringF((const __FlashStringHelper *)g_InControlState.gaitCur.pszName);
+#endif
+          }
+        }  
+        else {
+          // Gait number is out of range.
+          MSound( 2, 50, 2000, 50, 2000);  
         }
       }
 

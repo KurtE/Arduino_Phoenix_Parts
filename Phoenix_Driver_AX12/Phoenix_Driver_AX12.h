@@ -161,32 +161,37 @@ word ServoDriver::GetBatteryVoltage(void) {
 }
 
 #else
-#define VOLTAGE_REPEAT_MAX  3
-#define VOLTAGE_MAX_TIME_BETWEEN_CALLS 500    // call at least twice a second...
-
+#define VOLTAGE_MIN_TIME_BETWEEN_CALLS 250      // Max 4 times per second
+#define VOLTAGE_MAX_TIME_BETWEEN_CALLS 1000    // call at least once per second...
+#define VOLTAGE_TIME_TO_ERROR          3000    // Error out if no valid item is returned in 3 seconds...
 word g_wLastVoltage = 0xffff;    // save the last voltage we retrieved...
 byte g_bLegVoltage = 0;		// what leg did we last check?
 unsigned long g_ulTimeLastBatteryVoltage;
 
 word ServoDriver::GetBatteryVoltage(void) {
-  if (bioloid.interpolating && (g_wLastVoltage != 0xffff)  && ((millis()-g_ulTimeLastBatteryVoltage) < VOLTAGE_MAX_TIME_BETWEEN_CALLS))
-    return g_wLastVoltage;
-
-  register uint8_t bLoopCnt = VOLTAGE_REPEAT_MAX;
-  do {
-    // Lets cycle through the Tibia servos asking for voltages as they may be the ones doing the most
-    // work...
-    register word wVoltage = ax12GetRegister (pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+g_bLegVoltage]), AX_PRESENT_VOLTAGE, 1);
-	if (++g_bLegVoltage >= CNT_LEGS)
-		g_bLegVoltage = 0;
-    if (wVoltage != 0xffff) {
-        g_ulTimeLastBatteryVoltage = millis();
-        g_wLastVoltage = wVoltage * 10;
+  // In this case, we have to ask a servo for it's current voltage level, which is a lot more overhead than simply doing
+  // one AtoD operation.  So we will limit when we actually do this to maybe a few times per second.  
+  // Or longer if we are in the process of interpolating...
+  unsigned long ulDeltaTime = millis() - g_ulTimeLastBatteryVoltage;
+  if (g_wLastVoltage != 0xffff) {
+      if ( (ulDeltaTime < VOLTAGE_MIN_TIME_BETWEEN_CALLS) 
+            || (bioloid.interpolating &&  (ulDeltaTime < VOLTAGE_MAX_TIME_BETWEEN_CALLS)))
         return g_wLastVoltage;
-    }
-  } 
-  while (--bLoopCnt);
+  }
 
+  // Lets cycle through the Tibia servos asking for voltages as they may be the ones doing the most work...
+  register word wVoltage = ax12GetRegister (pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+g_bLegVoltage]), AX_PRESENT_VOLTAGE, 1);
+  if (++g_bLegVoltage >= CNT_LEGS)
+	g_bLegVoltage = 0;
+  if (wVoltage != 0xffff) {
+      g_ulTimeLastBatteryVoltage = millis();
+      g_wLastVoltage = wVoltage * 10;
+      return g_wLastVoltage;
+  }
+
+  // Allow it to error our a few times, but if the time until we get a valid response exceeds some time limit then error out.
+  if (ulDeltaTime < VOLTAGE_TIME_TO_ERROR)
+    return g_wLastVoltage;
   return 0;
 
 }
@@ -629,6 +634,15 @@ void  ServoDriver::BackgroundProcess(void)
     DebugToggle(A3);
 
     bioloid.interpolateStep(false);    // Do our background stuff...
+    
+    // Hack if we are not interpolating, maybe try to get voltage.  This will acutally only do this
+    // a few times per second.
+#ifdef cTurnOffVol          // only do if we a turn off voltage is defined
+#ifndef cVoltagePin         // and we are not doing AtoD type of conversion...
+    if (!bioloid.interpolating )
+        GetBatteryVoltage();
+#endif    
+#endif
   }
 }
 
@@ -649,9 +663,6 @@ void ServoDriver::ShowTerminalCommandList(void)
 #endif
 #ifdef OPT_FIND_SERVO_OFFSETS
   DBGSerial.println(F("O - Enter Servo offset mode"));
-#endif        
-#ifdef OPT_SSC_FORWARDER
-  DBGSerial.println(F("S - SSC Forwarder"));
 #endif        
 }
 
@@ -711,11 +722,6 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
     FindServoOffsets();
   }
 #endif
-#ifdef OPT_SSC_FORWARDER
-  else if ((bLen == 1) && ((*psz == 's') || (*psz == 'S'))) {
-    SSCForwarder();
-  }
-#endif
 #ifdef OPT_PYPOSE
   else if ((*psz == 'p') || (*psz == 'P')) {
     DoPyPose(++psz);
@@ -725,19 +731,6 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
 
 }
 #endif    
-
-
-//==============================================================================
-// SSC Forwarder - used to allow things like Lynxterm to talk to the SSC-32 
-// through the Arduino...  Will see if it is fast enough...
-//==============================================================================
-#ifdef OPT_SSC_FORWARDER
-void  SSCForwarder(void) 
-{
-}
-#endif // OPT_SSC_FORWARDER
-
-
 
 
 

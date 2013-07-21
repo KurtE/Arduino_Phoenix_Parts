@@ -69,7 +69,6 @@ enum {cRR=0, cRM, cRF, cLR, cLM, cLF, CNT_LEGS};
 
 
 // BUGBUG: to make Dynamic first pass simpl make it a variable.
-//#define NUM_GAITS    6
 extern  byte 	NUM_GAITS;
 #define SmDiv    	 4  //"Smooth division" factor for the smooth control function, a value of 3 to 5 is most suitable
 extern void GaitSelect(void);
@@ -154,6 +153,37 @@ typedef struct _Coord3D {
   long      z;
 } COORD3D;
 
+//==============================================================================
+// Define Gait structure/class - Hopefully allow specific robots to define their
+// own gaits and/or define which of the standard ones they want.
+//==============================================================================
+typedef struct _PhoenixGait {
+	short	 		NomGaitSpeed;		//Nominal speed of the gait
+	byte            StepsInGait;         //Number of steps in gait
+	byte            NrLiftedPos;         //Number of positions that a single leg is lifted [1-3]
+	byte            FrontDownPos;        //Where the leg should be put down to ground
+	byte            LiftDivFactor;       //Normaly: 2, when NrLiftedPos=5: 4
+	byte            TLDivFactor;         //Number of steps that a leg is on the floor while walking
+	byte	        HalfLiftHeight;      // How high to lift at halfway up.
+
+#ifdef QUADMODE
+    // Extra information used in the Quad balance mode
+    word			COGAngleStart1;		 // COG shifting starting angle
+    word			COGAngleStep1;		 // COG Angle Steps in degrees
+    byte			COGRadius;			 // COG Radius; the amount the body shifts
+    boolean 		COGCCW;				 // COG Gait sequence runs counter clock wise
+#endif    
+	byte            GaitLegNr[CNT_LEGS]; //Init position of the leg
+#ifdef DISPLAY_GAIT_NAMES
+    PGM_P           pszName;             // The gait name
+#endif
+} PHOENIXGAIT;
+
+#ifdef DISPLAY_GAIT_NAMES
+#define GATENAME(name)  ,name
+#else
+#define GATENAME(name)
+#endif
 
 //==============================================================================
 // class ControlState: This is the main structure of data that the Control 
@@ -161,25 +191,26 @@ typedef struct _Coord3D {
 //      requested.
 //==============================================================================
 typedef struct _InControlState {
-  boolean		fRobotOn;				//Switch to turn on Phoenix
-  boolean		fPrev_RobotOn;			//Previous loop state 
+  boolean		fRobotOn;			 //Switch to turn on Phoenix
+  boolean		fPrev_RobotOn;		 //Previous loop state 
   //Body position
   COORD3D       BodyPos;
   COORD3D        BodyRotOffset;      // Body rotation offset;
 
   //Body Inverse Kinematics
-  COORD3D       BodyRot1;               // X -Pitch, Y-Rotation, Z-Roll
+  COORD3D       BodyRot1;            // X -Pitch, Y-Rotation, Z-Roll
 
   //[gait]
-  byte			GaitType;			//Gait type
+  byte			GaitType;			 //Gait type
+  PHOENIXGAIT   gaitCur;             // Definition of the current gait
 
-    short       LegLiftHeight;		//Current Travel height
-  COORD3D       TravelLength;            // X-Z or Length, Y is rotation.
+    short       LegLiftHeight;		 //Current Travel height
+  COORD3D       TravelLength;        // X-Z or Length, Y is rotation.
 
   //[Single Leg Control]
   byte			SelectedLeg;
-  COORD3D       SLLeg;                // 
-  boolean		fSLHold;		 	//Single leg control mode
+  COORD3D       SLLeg;               // 
+  boolean		fSLHold;		 	 //Single leg control mode
 
 
   //[Balance]
@@ -241,31 +272,6 @@ private:
 #endif
 
 } ;   
-
-//==============================================================================
-// Define Gait structure/class - Hopefully allow specific robots to define their
-// own gaits and/or define which of the standard ones they want.
-//==============================================================================
-typedef struct _PhoenixGait {
-	short	 		NomGaitSpeed;		//Nominal speed of the gait
-	byte            StepsInGait;         //Number of steps in gait
-	byte            NrLiftedPos;         //Number of positions that a single leg is lifted [1-3]
-	byte            FrontDownPos;        //Where the leg should be put down to ground
-	byte            LiftDivFactor;       //Normaly: 2, when NrLiftedPos=5: 4
-	byte            TLDivFactor;         //Number of steps that a leg is on the floor while walking
-	byte	        HalfLiftHeight;      // How high to lift at halfway up.
-
-#ifdef QUADMODE
-    // Extra information used in the Quad balance mode
-    word			COGAngleStart1;		 // COG shifting starting angle
-    word			COGAngleStep1;		 // COG Angle Steps in degrees
-    byte			COGRadius;			 // COG Radius; the amount the body shifts
-    boolean 		COGCCW;				 // COG Gait sequence runs counter clock wise
-#endif    
-
-	byte            GaitLegNr[CNT_LEGS]; //Init position of the leg
-} PHOENIXGAIT;
-
 
 //==============================================================================
 //==============================================================================

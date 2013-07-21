@@ -124,20 +124,35 @@
 
 
 //--------------------------------------------------------------------
-//[MIN/MAX ANGLES] - Start off assume same as Phoenix...
+//[MIN/MAX ANGLES] - Warning - remember that some servos direction is 
+// inverted in code after we do the conversions.  So the Right legs need
+// to have their Min/Max values negated from what is seen on the actual robot
+// servo positions...
+//1:224(-843) 797(834)
+//3:159(-1034) 862(1025)
+//5:277(-688) 864(1031)
+//7:223(-846) 798(837)
+//9:160(-1031) 858(1013)
+//11:283(-670) 863(1028)
+//2:220(-855) 797(834)
+//4:163(-1022) 863(1028)
+//6:158(-1037) 747(688)
+//8:220(-855) 801(846)
+//10:255(-752) 861(1022)
+//12:125(-1133) 746(685)
 #define cRRCoxaMin1    -750
 #define cRRCoxaMax1    750
 #define cRRFemurMin1    -1000
 #define cRRFemurMax1    1000
-#define cRRTibiaMin1    -680
-#define cRRTibiaMax1    1020
+#define cRRTibiaMin1    -1020
+#define cRRTibiaMax1    680
 
 #define cRFCoxaMin1    -750    //Mechanical limits of the Right Front Leg, decimals = 1
 #define cRFCoxaMax1     750
 #define cRFFemurMin1    -1000
 #define cRFFemurMax1    1000
-#define cRFTibiaMin1    -680
-#define cRFTibiaMax1    1020
+#define cRFTibiaMin1    -1020
+#define cRFTibiaMax1    680
 
 #define cLRCoxaMin1    -750    //Mechanical limits of the Left Rear Leg, decimals = 1
 #define cLRCoxaMax1     750
@@ -206,36 +221,45 @@
 
 //--------------------------------------------------------------------
 //[START POSITIONS FEET]
-#define cHexInitXZ	 130
-#define CHexInitXZCos45  92      // COS(45) = .707
-#define CHexInitXZSin45  92     // sin(45) = .707
+#define cHexInitXZ	 150
+#define CHexInitXZCos60  130 //92      // COS(60) = .866
+#define CHexInitXZSin60  75 // 92     // sin(60) = .5
 #define CHexInitY	 25       //30
 
 // Lets try some multi leg positions depending on height settings.
-#define CNT_HEX_INITS 2
-#define MAX_BODY_Y  150
+#define CNT_HEX_INITS   3
+#define MAX_BODY_Y    150
+
+// For Inits we may want to tell system actual angles we are initiing servos to...
+// In some cases like some quads may not want legs straight out...
+#define cRRInitCoxaAngle1   -300   //Default Coxa setup angle, decimals = 1
+#define cRFInitCoxaAngle1    300    //Default Coxa setup angle, decimals = 1
+#define cLRInitCoxaAngle1    -300   //Default Coxa setup angle, decimals = 1
+#define cLFInitCoxaAngle1    300    //Default Coxa setup angle, decimals = 1
+
+
 #ifdef DEFINE_HEX_GLOBALS
-const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 110};
-const byte g_abHexMaxBodyY[] PROGMEM = { 30, MAX_BODY_Y};
+const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 130, 110};
+const byte g_abHexMaxBodyY[] PROGMEM = { 30, 60, MAX_BODY_Y};
 #else
 extern const byte g_abHexIntXZ[] PROGMEM;
 extern const byte g_abHexMaxBodyY[] PROGMEM;
 #endif
 
-#define cRRInitPosX     CHexInitXZCos45      //Start positions of the Right Rear leg
+#define cRRInitPosX     CHexInitXZCos60      //Start positions of the Right Rear leg
 #define cRRInitPosY     CHexInitY
-#define cRRInitPosZ     CHexInitXZSin45
+#define cRRInitPosZ     CHexInitXZSin60
 
-#define cRFInitPosX     CHexInitXZCos45      //Start positions of the Right Front leg
+#define cRFInitPosX     CHexInitXZCos60      //Start positions of the Right Front leg
 #define cRFInitPosY     CHexInitY
-#define cRFInitPosZ     -CHexInitXZSin45
+#define cRFInitPosZ     -CHexInitXZSin60
 
-#define cLRInitPosX     CHexInitXZCos45      //Start positions of the Left Rear leg
+#define cLRInitPosX     CHexInitXZCos60      //Start positions of the Left Rear leg
 #define cLRInitPosY     CHexInitY
-#define cLRInitPosZ     CHexInitXZSin45
+#define cLRInitPosZ     CHexInitXZSin60
 
-#define cLFInitPosX     CHexInitXZCos45      //Start positions of the Left Front leg
+#define cLFInitPosX     CHexInitXZCos60      //Start positions of the Left Front leg
 #define cLFInitPosY     CHexInitY
-#define cLFInitPosZ     -CHexInitXZSin45
+#define cLFInitPosZ     -CHexInitXZSin60
 //--------------------------------------------------------------------
 #endif // HEX_CFG_H

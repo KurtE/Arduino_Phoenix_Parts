@@ -7,7 +7,7 @@
 #else
 #include <Wprogram.h> // Arduino 0022
 #endif
-//#define DEBUG
+#define DEBUG
 //#define DEBUG_OUT
 //#define DEBUG_VERBOSE
 
@@ -83,7 +83,7 @@ void InitXBee(void)
   g_diystate.bTransDataVersion = 0;    // assume old transmitter...
   g_diystate.wDBGDL= 0xffff;          // Debug 
 
-  pinMode(0, OUTPUT);
+//  pinMode(0, OUTPUT);
 
 }
 
@@ -196,7 +196,7 @@ void SendXBeePacket(uint16_t wDL, uint8_t bPHType, uint8_t cbExtra, uint8_t *pbE
     if (cbExtra)
       DebugMemoryDump(pbExtra, 0, cbExtra);
 #endif    
-    DBGSerial.println("\r");
+    DBGSerial.println();
   }
 
 #endif
@@ -525,7 +525,7 @@ void DebugMemoryDump(const uint8_t* data, int off, int len)
       else
         DBGSerial.write(" ");
     }
-    DBGSerial.write("\n\r\r");
+    DBGSerial.println();
   }
 }
 
@@ -574,7 +574,7 @@ boolean ReceiveXBeePacket(PDIYPACKET pdiyp)
     if (!cbRead)
       break;                            // Again nothing read?
 
-    digitalWrite(0, !digitalRead(0));
+//    digitalWrite(0, !digitalRead(0));
 #ifdef DEBUG
     s_fDisplayedTimeout = false;        // say that we got something so we can display empty again...
 #endif
@@ -729,7 +729,7 @@ _SetToValidDataAndReturn:
     //-----------------------------------------------------------------------------
     else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_DEBUG_STRING) {
       pinMode(0, OUTPUT);
-      digitalWrite(0, !digitalRead(0));
+//      digitalWrite(0, !digitalRead(0));
       XBDSerial.SetInputText(&g_diystate.bAPIPacket[bDataOffset + 1], cbRead); // need to check byte order
       // Ok lets take this and append it onto our debug input text buffer...
     }    
@@ -837,7 +837,7 @@ size_t XBeeDebugSerial::write(uint8_t b) {
         _abOut[_cbOut] = 0;  // Make sure it is null terminated...
         SendXBeePacket(g_diystate.wDBGDL, XBEE_RECV_DISP_STR, _cbOut, (uint8_t*)_abOut);
         _cbOut = 0;
-        digitalWrite(0, !digitalRead(0));
+//        digitalWrite(0, !digitalRead(0));
       } 
       else {
         _abOut[_cbOut++] = b;
