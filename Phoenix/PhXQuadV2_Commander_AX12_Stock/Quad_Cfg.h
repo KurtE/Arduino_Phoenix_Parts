@@ -44,6 +44,8 @@
 #define cLMTibiaInv 1 
 #define cLFTibiaInv 1 
 
+#define BALANCE_DELAY 25    // don't add as much as the default here.
+
 //===================================================================
 // Debug Options
 #ifdef DBGSerial
@@ -227,6 +229,7 @@
 #define CHexInitY	 25       //30
 
 // Lets try some multi leg positions depending on height settings.
+#define DYNAMIC_INIT_XZ 
 #define CNT_HEX_INITS   3
 #define MAX_BODY_Y    150
 

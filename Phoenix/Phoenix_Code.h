@@ -167,6 +167,11 @@ static const word GetSin[] PROGMEM = {
 #define cLFTarsInv 0 
 #endif
 
+// Also define default BalanceDelay
+#ifndef BALANCE_DELAY
+#define BALANCE_DELAY 100
+#endif
+
 
 #ifndef QUADMODE
 // Standard Hexapod...
@@ -207,6 +212,7 @@ static const short cTarsHornOffset1[] PROGMEM = {
 #endif
 
 //Min / Max values
+#ifndef SERVOS_DO_MINMAX
 const short cCoxaMin1[] PROGMEM = {
   cRRCoxaMin1,  cRMCoxaMin1,  cRFCoxaMin1,  cLRCoxaMin1,  cLMCoxaMin1,  cLFCoxaMin1};
 const short cCoxaMax1[] PROGMEM = {
@@ -225,6 +231,7 @@ const short cTarsMin1[] PROGMEM = {
   cRRTarsMin1, cRMTarsMin1, cRFTarsMin1, cLRTarsMin1, cLMTarsMin1, cLFTarsMin1};
 const short cTarsMax1[] PROGMEM = {
   cRRTarsMax1, cRMTarsMax1, cRFTarsMax1, cLRTarsMax1, cLMTarsMax1, cLFTarsMax1};
+#endif
 #endif
 
 // Servo inverse direction
@@ -314,6 +321,7 @@ static const short cTarsHornOffset1[] PROGMEM = {
 #endif
 
 //Min / Max values
+#ifndef SERVOS_DO_MINMAX
 const short cCoxaMin1[] PROGMEM = {
   cRRCoxaMin1,  cRFCoxaMin1,  cLRCoxaMin1,  cLFCoxaMin1};
 const short cCoxaMax1[] PROGMEM = {
@@ -333,7 +341,7 @@ const short cTarsMin1[] PROGMEM = {
 const short cTarsMax1[] PROGMEM = {
   cRRTarsMax1, cRFTarsMax1, cLRTarsMax1, cLFTarsMax1};
 #endif
-
+#endif
 
 // Servo inverse direction
 const bool cCoxaInv[] = {cRRCoxaInv, cRFCoxaInv, cLRCoxaInv, cLFCoxaInv};
@@ -486,10 +494,6 @@ long            TotalTransY;
 long            TotalYBal1;
 long            TotalXBal1;
 long            TotalZBal1;
-#ifdef QUADMODE
-byte			TotalTransLegCnt;
-short			BalancePercentage = 100;		// what percentage of the balance should we use default 100 (debug sort-of)
-#endif
 //[Single Leg Control]
 byte            PrevSelectedLeg;
 boolean         AllDown;
@@ -751,10 +755,6 @@ void loop(void)
   TotalXBal1 = 0;
   TotalYBal1 = 0;
   TotalZBal1 = 0;
-#ifdef QUADMODE
-//  TotalTransLegCnt = 0;
-//  TotGaitBalPercent = 0;
-#endif
   
   if (g_InControlState.BalanceMode) {
 #ifdef DEBUG
@@ -850,7 +850,7 @@ void loop(void)
 
       //Add aditional delay when Balance mode is on
       if (g_InControlState.BalanceMode)
-        ServoMoveTime = ServoMoveTime + 100;
+        ServoMoveTime = ServoMoveTime + BALANCE_DELAY;
     } 
     else //Movement speed excl. Walking
     ServoMoveTime = 200 + g_InControlState.SpeedControl;
@@ -1220,7 +1220,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight;
     GaitPosZ[GaitCurrentLegNr] = 0;
     GaitRotY[GaitCurrentLegNr] = 0;
-//	GaitLegInAir[GaitCurrentLegNr] = true;
   }
   //Optional Half heigth Rear (2, 3, 5 lifted positions)
   else if (((g_InControlState.gaitCur.NrLiftedPos==2 && LegStep==0) || (g_InControlState.gaitCur.NrLiftedPos>=3 && 
@@ -1230,7 +1229,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+g_InControlState.gaitCur.HalfLiftHeight);     //Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/g_InControlState.gaitCur.LiftDivFactor;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/g_InControlState.gaitCur.LiftDivFactor;
-//	GaitLegInAir[GaitCurrentLegNr] = true;
   }    
   // _A_	  
   // Optional Half heigth front (2, 3, 5 lifted positions)
@@ -1239,7 +1237,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -3*g_InControlState.LegLiftHeight/(3+g_InControlState.gaitCur.HalfLiftHeight); // Easier to shift between div factor: /1 (3/3), /2 (3/6) and 3/4
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/g_InControlState.gaitCur.LiftDivFactor;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/g_InControlState.gaitCur.LiftDivFactor;
-//	GaitLegInAir[GaitCurrentLegNr] = true;
   }
 
   //Optional Half heigth Rear 5 LiftedPos (5 lifted positions)
@@ -1248,7 +1245,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = -g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = -g_InControlState.TravelLength.y/2;
-//	GaitLegInAir[GaitCurrentLegNr] = true;
   }  		
 
   //Optional Half heigth Front 5 LiftedPos (5 lifted positions)
@@ -1257,7 +1253,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = -g_InControlState.LegLiftHeight/2;
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;
-//	GaitLegInAir[GaitCurrentLegNr] = true;
   }
   //_B_
   //Leg front down position //bug here?  From _A_ to _B_ there should only be one gaitstep, not 2!
@@ -1267,8 +1262,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosZ[GaitCurrentLegNr] = g_InControlState.TravelLength.z/2;
     GaitRotY[GaitCurrentLegNr] = g_InControlState.TravelLength.y/2;      	
     GaitPosY[GaitCurrentLegNr] = 0;	
-//	GaitLegInAir[GaitCurrentLegNr] = true;
-//	GaitGetNextLeg(GaitStep);	// Figure out which leg will lift next
   }
 
   //Move body forward      
@@ -1277,7 +1270,6 @@ void Gait (byte GaitCurrentLegNr)
     GaitPosY[GaitCurrentLegNr] = 0; 
     GaitPosZ[GaitCurrentLegNr] = GaitPosZ[GaitCurrentLegNr] - (g_InControlState.TravelLength.z/(short)g_InControlState.gaitCur.TLDivFactor);
     GaitRotY[GaitCurrentLegNr] = GaitRotY[GaitCurrentLegNr] - (g_InControlState.TravelLength.y/(short)g_InControlState.gaitCur.TLDivFactor);
-//	GaitLegInAir[GaitCurrentLegNr] = false;
   }
 
 }  
@@ -1813,7 +1805,7 @@ short CheckServoAngleBounds(short sID,  short sVal, const short *sMin PROGMEM, c
 //--------------------------------------------------------------------
 void CheckAngles(void)
 {
-
+#ifndef SERVOS_DO_MINMAX
   short s = 0;      // BUGBUG just some index so we can get a hint who errored out
   for (LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++)
   {
@@ -1826,6 +1818,7 @@ void CheckAngles(void)
     }
 #endif
   }
+#endif  
 }
 
 
@@ -1844,31 +1837,13 @@ short SmoothControl (short CtrlMoveInp, short CtrlMoveOut, byte CtrlDivider)
   return CtrlMoveInp;
 }
 
-//--------------------------------------------------------------------
-// AdjustLegPositionsToBodyHeight() - Will try to adjust the position of the legs
-//     to be appropriate for the current y location of the body...
-//--------------------------------------------------------------------
 
-uint8_t g_iLegInitIndex = 0x00;    // remember which index we are currently using...
-
-void AdjustLegPositionsToBodyHeight(void)
+//--------------------------------------------------------------------
+// AdjustLegPositions() - Will adjust the init leg positions to the
+//      width passed in.
+//--------------------------------------------------------------------
+void AdjustLegPositions(word XZLength1) 
 {
-#ifdef CNT_HEX_INITS
-  // Lets see which of our units we should use...
-  // Note: We will also limit our body height here...
-  if (g_InControlState.BodyPos.y > (short)pgm_read_byte(&g_abHexMaxBodyY[CNT_HEX_INITS-1]))
-    g_InControlState.BodyPos.y =  (short)pgm_read_byte(&g_abHexMaxBodyY[CNT_HEX_INITS-1]);
-
-  uint8_t i;
-  word XZLength1 = pgm_read_byte(&g_abHexIntXZ[CNT_HEX_INITS-1]);
-  for(i = 0; i < (CNT_HEX_INITS-1); i++) {    // Don't need to look at last entry as we already init to assume this one...
-    if (g_InControlState.BodyPos.y <= (short)pgm_read_byte(&g_abHexMaxBodyY[i])) {
-      XZLength1 = pgm_read_byte(&g_abHexIntXZ[i]);
-      break;
-    }
-  }
-  if (i != g_iLegInitIndex) { 
-    g_iLegInitIndex = i;  // remember the current index...
     //now lets see what happens when we change the leg positions...
     for (uint8_t LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++) {
 #ifdef DEBUG
@@ -1904,6 +1879,42 @@ void AdjustLegPositionsToBodyHeight(void)
 #endif
     // Make sure we cycle through one gait to have the legs all move into their new locations...
     g_InControlState.ForceGaitStepCnt = g_InControlState.gaitCur.StepsInGait;
+}
+
+word GetLegsXZLength(void) 
+{
+    // Could save away or could do a little math on one leg... 
+    return isqrt32((LegPosX[0] * LegPosX[0]) + (LegPosZ[0] * LegPosZ[0]));
+}
+
+//--------------------------------------------------------------------
+// AdjustLegPositionsToBodyHeight() - Will try to adjust the position of the legs
+//     to be appropriate for the current y location of the body...
+//--------------------------------------------------------------------
+
+uint8_t g_iLegInitIndex = 0x00;    // remember which index we are currently using...
+
+void AdjustLegPositionsToBodyHeight()
+{
+#ifdef CNT_HEX_INITS
+  // Lets see which of our units we should use...
+  // Note: We will also limit our body height here...
+  if (g_InControlState.BodyPos.y > (short)pgm_read_byte(&g_abHexMaxBodyY[CNT_HEX_INITS-1]))
+    g_InControlState.BodyPos.y =  (short)pgm_read_byte(&g_abHexMaxBodyY[CNT_HEX_INITS-1]);
+
+  uint8_t i;
+  word XZLength1 = pgm_read_byte(&g_abHexIntXZ[CNT_HEX_INITS-1]);
+  for(i = 0; i < (CNT_HEX_INITS-1); i++) {    // Don't need to look at last entry as we already init to assume this one...
+    if (g_InControlState.BodyPos.y <= (short)pgm_read_byte(&g_abHexMaxBodyY[i])) {
+      XZLength1 = pgm_read_byte(&g_abHexIntXZ[i]);
+      break;
+    }
+  }
+  if (i != g_iLegInitIndex) { 
+    g_iLegInitIndex = i;  // remember the current index...
+    
+    // Call off to helper function to do the work.
+    AdjustLegPositions(XZLength1);
   }
 #endif // CNT_HEX_INITS
 
@@ -1974,7 +1985,6 @@ void MSound(byte cNotes, ...)
 extern void DumpEEPROMCmd(byte *pszCmdLine);
 #endif
 #ifdef QUADMODE
-extern void UpdateBalancePercent(byte *pszCmdLine);
 extern void UpdateGaitCmd(byte *pszCmdLine);
 #endif
 //==============================================================================
@@ -2035,9 +2045,6 @@ boolean TerminalMonitor(void)
     } 
 #endif
 #ifdef QUADMODE
-    else if (((szCmdLine[0] == 'b') || (szCmdLine[0] == 'B'))) {
-      UpdateBalancePercent(szCmdLine);
-    } 
     else if (((szCmdLine[0] == 'g') || (szCmdLine[0] == 'G'))) {
       UpdateGaitCmd(szCmdLine);
     } 
@@ -2171,22 +2178,8 @@ void DumpEEPROMCmd(byte *pszCmdLine) {
   }
 }
 #endif
-//--------------------------------------------------------------------
-// UpdateBalancePercent
-//--------------------------------------------------------------------
+
 #ifdef QUADMODE
-void UpdateBalancePercent(byte *pszCmdLine) {
-  if (!*++pszCmdLine) {  // Need to get past the command letter first...
-	DBGSerial.print("Balance Perent: ");
-	DBGSerial.println(BalancePercentage, DEC);
-  }
-  else {
-	//Argument should be New percentage
-    BalancePercentage = GetCmdLineNum(&pszCmdLine);
-  }
-}
-
-
 //--------------------------------------------------------------------
 // UpdateGaitCmd
 //--------------------------------------------------------------------

@@ -141,8 +141,8 @@ public:
   int ReadMsgs();         // must be called regularly to clean out Serial buffer
 
   // joystick values are -125 to 125
-  signed char RightV;      // vertical stick movement = forward speed
-  signed char RightH;      // horizontal stick movement = sideways or angular speed
+  signed char rightV;      // vertical stick movement = forward speed
+  signed char rightH;      // horizontal stick movement = sideways or angular speed
   signed char leftV;      // vertical stick movement = tilt    
   signed char leftH;      // horizontal stick movement = pan (when we run out of pan, turn body?)
 
@@ -166,7 +166,7 @@ private:
 Commander command = Commander();
 unsigned long g_ulLastMsgTime;
 short  g_sGPSMController;    // What GPSM value have we calculated. 0xff - Not used yet
-
+boolean g_fDynamicLegXZLength = false;  // Has the user dynamically adjusted the Leg XZ init pos (width)
 #ifdef USEMULTI
 //==============================================================================
 //
@@ -262,7 +262,8 @@ void CommanderInputController::ControlInput(void)
   if(command.ReadMsgs() > 0){
     // If we receive a valid message than turn robot on...
     boolean fAdjustLegPositions = false;
-
+    short sLegInitXZAdjust = 0;
+    
     if (!g_InControlState.fRobotOn ) {
         g_InControlState.fRobotOn = true;
         fAdjustLegPositions = true;
@@ -303,6 +304,7 @@ void CommanderInputController::ControlInput(void)
       else
         g_BodyYOffset = 35;
       fAdjustLegPositions = true;
+      g_fDynamicLegXZLength = false;
     }
 
     // We will use L6 with the Right joystick to control both body offset as well as Speed...
@@ -317,6 +319,9 @@ void CommanderInputController::ControlInput(void)
         g_BodyYOffset = max(min(g_BodyYOffset + delta, MAX_BODY_Y), 0);
         fAdjustLegPositions = true;
       }
+      
+      // Also use right Horizontal to manually adjust the initial leg positions.
+      sLegInitXZAdjust = command.rightH/16;        // play with this.
 
       // Likewise for Speed control
       delta = command.leftH / 16;   // 
@@ -378,8 +383,8 @@ void CommanderInputController::ControlInput(void)
 
       else
       {
-        g_InControlState.TravelLength.x = -command.RightH;
-        g_InControlState.TravelLength.z = command.RightV;
+        g_InControlState.TravelLength.x = -command.rightH;
+        g_InControlState.TravelLength.z = command.rightV;
       }
 
       if (!DoubleTravelOn) {  //(Double travel length)
@@ -393,21 +398,21 @@ void CommanderInputController::ControlInput(void)
     //[Translate functions]
     g_BodyYShift = 0;
     if (ControlMode == TRANSLATEMODE) {
-      g_InControlState.BodyPos.x =  SmoothControl(((command.RightH)*2/3), g_InControlState.BodyPos.x, SmDiv);
-      g_InControlState.BodyPos.z =  SmoothControl(((command.RightV)*2/3), g_InControlState.BodyPos.z, SmDiv);
+      g_InControlState.BodyPos.x =  SmoothControl(((command.rightH)*2/3), g_InControlState.BodyPos.x, SmDiv);
+      g_InControlState.BodyPos.z =  SmoothControl(((command.rightV)*2/3), g_InControlState.BodyPos.z, SmDiv);
       g_InControlState.BodyRot1.y = SmoothControl(((command.leftH)*2), g_InControlState.BodyRot1.y, SmDiv);
 
-      //      g_InControlState.BodyPos.x = (command.RightH)/2;
-      //      g_InControlState.BodyPos.z = -(command.RightV)/3;
+      //      g_InControlState.BodyPos.x = (command.rightH)/2;
+      //      g_InControlState.BodyPos.z = -(command.rightV)/3;
       //      g_InControlState.BodyRot1.y = (command.leftH)*2;
       g_BodyYShift = (-(command.leftV)/2);
     }
 
     //[Rotate functions]
     if (ControlMode == ROTATEMODE) {
-      g_InControlState.BodyRot1.x = (command.RightV);
+      g_InControlState.BodyRot1.x = (command.rightV);
       g_InControlState.BodyRot1.y = (command.leftH)*2;
-      g_InControlState.BodyRot1.z = (command.RightH);
+      g_InControlState.BodyRot1.z = (command.rightH);
       g_BodyYShift = (-(command.leftV)/2);
     }
 #ifdef OPT_GPPLAYER
@@ -468,9 +473,9 @@ void CommanderInputController::ControlInput(void)
           g_InControlState.SelectedLeg=0;
       }
 
-      g_InControlState.SLLeg.x= (byte)((int)command.RightH+128)/2; //Left Stick Right/Left
+      g_InControlState.SLLeg.x= (byte)((int)command.rightH+128)/2; //Left Stick Right/Left
       g_InControlState.SLLeg.y= (byte)((int)command.leftV+128)/10; //Right Stick Up/Down
-      g_InControlState.SLLeg.z = (byte)((int)command.RightV+128)/2; //Left Stick Up/Down
+      g_InControlState.SLLeg.z = (byte)((int)command.rightV+128)/2; //Left Stick Up/Down
 
       // Hold single leg in place
       if ((command.buttons & BUT_RT) && !(buttonsPrev & BUT_RT)) {
@@ -481,11 +486,18 @@ void CommanderInputController::ControlInput(void)
 
 
     //Calculate walking time delay
-    g_InControlState.InputTimeDelay = 128 - max(max(abs(command.RightH), abs(command.RightV)), abs(command.leftH));
+    g_InControlState.InputTimeDelay = 128 - max(max(abs(command.rightH), abs(command.rightV)), abs(command.leftH));
 
     //Calculate g_InControlState.BodyPos.y
     g_InControlState.BodyPos.y = max(g_BodyYOffset + g_BodyYShift,  0);
-    if (fAdjustLegPositions)
+
+    if (sLegInitXZAdjust) {
+        // User asked for manual leg adjustment
+        g_fDynamicLegXZLength = true;
+        AdjustLegPositions(GetLegsXZLength() + sLegInitXZAdjust);
+    }    
+
+    if (fAdjustLegPositions && !g_fDynamicLegXZLength)
       AdjustLegPositionsToBodyHeight();    // Put main workings into main program file
 
     // Save away the buttons state as to not process the same press twice.
@@ -521,6 +533,7 @@ void CommanderTurnRobotOff(void)
   g_BodyYShift = 0;
   g_InControlState.SelectedLeg = 255;
   g_InControlState.fRobotOn = 0;
+  g_fDynamicLegXZLength = false; // also make sure the robot is back in normal leg init mode...
 }
 
 
@@ -599,8 +612,8 @@ int Commander::ReadMsgs(){
           digitalWrite(0, !digitalRead(0));
           leftV = (signed char)( (int)vals[0]-128 );
           leftH = (signed char)( (int)vals[1]-128 );
-          RightV = (signed char)( (int)vals[2]-128 );
-          RightH = (signed char)( (int)vals[3]-128 );
+          rightV = (signed char)( (int)vals[2]-128 );
+          rightH = (signed char)( (int)vals[3]-128 );
           buttons = vals[4];
           ext = vals[5];
         }

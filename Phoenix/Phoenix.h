@@ -87,7 +87,9 @@ extern boolean          g_fRobotUpsideDown;    // Is the robot upside down?
 extern void MSound(byte cNotes, ...);
 extern boolean CheckVoltage(void);
 
-void AdjustLegPositionsToBodyHeight(void);
+word GetLegsXZLength(void);
+void AdjustLegPositions(word XZLength1);
+void AdjustLegPositionsToBodyHeight();
 
 // debug handler...
 extern boolean g_fDBGHandleError;
