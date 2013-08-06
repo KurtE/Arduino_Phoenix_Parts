@@ -41,6 +41,7 @@
 // Only compile in Debug code if we have something to output to
 #ifdef DBGSerial
 #define DEBUG
+//#define DEBUG_X
 #endif
 
 
@@ -894,7 +895,7 @@ void loop(void)
 
         DBGSerial.print("BRX:");
         DBGSerial.print(g_InControlState.BodyRot1.x,DEC); 
-        /*DBGSerial.print("W?:");
+        DBGSerial.print("W?:");
          DBGSerial.print(fWalking,DEC);  
          DBGSerial.print(" GS:");
          DBGSerial.print(GaitStep,DEC);  
@@ -902,7 +903,7 @@ void loop(void)
          DBGSerial.print(" GPZ:");
          DBGSerial.print(GaitPosZ[cLF],DEC);
          DBGSerial.print(" GPY:");
-         DBGSerial.println(GaitPosY[cLF],DEC);*/
+         DBGSerial.println(GaitPosY[cLF],DEC);
       }
 #endif
     }
@@ -1715,6 +1716,22 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
   Temp2 = (long)(2*(byte)pgm_read_byte(&cFemurLength[LegIKLegNr]))*c2DEC * (unsigned long)IKSW2;
   T3 = Temp1 / (Temp2/c4DEC);
   IKA24 = GetArcCos (T3 );
+#ifdef DEBUG_IK
+    if (g_fDebugOutput && g_InControlState.fRobotOn) {
+        DBGSerial.print(" ");
+        DBGSerial.print(Temp1, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(Temp2, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(T3, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(IKSW2, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(IKA14, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(IKA24, DEC);
+    }
+#endif
   //IKFemurAngle
 #ifdef OPT_WALK_UPSIDE_DOWN
   if (g_fRobotUpsideDown)
@@ -1727,8 +1744,19 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
 
   //IKTibiaAngle
   Temp1 = ((((long)(byte)pgm_read_byte(&cFemurLength[LegIKLegNr])*(byte)pgm_read_byte(&cFemurLength[LegIKLegNr])) + ((long)(byte)pgm_read_byte(&cTibiaLength[LegIKLegNr])*(byte)pgm_read_byte(&cTibiaLength[LegIKLegNr])))*c4DEC - ((long)IKSW2*IKSW2));
-  Temp2 = (2*(byte)pgm_read_byte(&cFemurLength[LegIKLegNr])*(byte)pgm_read_byte(&cTibiaLength[LegIKLegNr]));
+  Temp2 = 2 * ((long)((byte)pgm_read_byte(&cFemurLength[LegIKLegNr]))) * (long)((byte)pgm_read_byte(&cTibiaLength[LegIKLegNr])); 
   GetArcCos (Temp1 / Temp2);
+#ifdef DEBUG_IK
+    if (g_fDebugOutput && g_InControlState.fRobotOn) {
+        DBGSerial.print("=");
+        DBGSerial.print(Temp1, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(Temp2, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(AngleRad4, DEC);
+    }
+#endif
+    
 #ifdef OPT_WALK_UPSIDE_DOWN
   if (g_fRobotUpsideDown)
     TibiaAngle1[LegIKLegNr] = (1800-(long)AngleRad4*180/3141 + CTIBIAHORNOFFSET1(LegIKLegNr));//Full range tibia, wrong side (up side down)
@@ -1760,6 +1788,26 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
     else
       IKSolutionError = 1    ;
   }
+#ifdef DEBUG_IK
+    if (g_fDebugOutput && g_InControlState.fRobotOn) {
+        DBGSerial.print("(");
+        DBGSerial.print(IKFeetPosX, DEC);
+        DBGSerial.print(",");
+        DBGSerial.print(IKFeetPosY, DEC);
+        DBGSerial.print(",");
+        DBGSerial.print(IKFeetPosZ, DEC);
+        DBGSerial.print(")=<");
+        DBGSerial.print(CoxaAngle1[LegIKLegNr], DEC);
+        DBGSerial.print(",");
+        DBGSerial.print(FemurAngle1[LegIKLegNr], DEC);
+        DBGSerial.print(",");
+        DBGSerial.print(TibiaAngle1[LegIKLegNr], DEC);
+        DBGSerial.print(">");
+        DBGSerial.print((IKSolutionError<<2)+(IKSolutionWarning<<1)+IKSolution, DEC);
+        if (LegIKLegNr == (CNT_LEGS-1))
+            DBGSerial.println();
+    }
+#endif  
 }
 
 //--------------------------------------------------------------------
@@ -1914,6 +1962,14 @@ void AdjustLegPositionsToBodyHeight()
     g_iLegInitIndex = i;  // remember the current index...
     
     // Call off to helper function to do the work.
+#ifdef DEBUG
+    if (g_fDebugOutput) {
+        DBGSerial.print("ALPTBH: ");
+        DBGSerial.print(g_InControlState.BodyPos.y, DEC);
+        DBGSerial.print(" ");
+        DBGSerial.print(XZLength1, DEC);
+    }
+#endif    
     AdjustLegPositions(XZLength1);
   }
 #endif // CNT_HEX_INITS

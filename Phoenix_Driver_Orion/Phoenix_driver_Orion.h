@@ -43,8 +43,10 @@ const byte cTarsPin[] PROGMEM = {
 #define NUMSERVOSPERLEG 3
 #endif
 boolean g_fServosAttached;
+boolean g_fDebugServos = false;
 
-
+// Any foreword references
+extern boolean MakeSureServosAreOn(void);
 
 //--------------------------------------------------------------------
 //Init
@@ -54,26 +56,28 @@ void ServoDriver::Init(void) {
   g_fServosAttached = false;  // remember we are not attached. Could simply ask one of our servos...
   
   Orion.begin();	// Start up the Orion sub-system.
+  FreeServos(); 
   // Orion also handles the servo offsets...
-  Orion.SetLipoCutoff(0);	
+//  Orion.SetLipoCutoff(0);	
 
+#if 0  // The Test/Calibrate program sets these up
   // Some of this could/should go external program and may only need to be done once.
   // Note New code is now doing the inversion of servos before calling here...
-#define SERVOUNITSPERDEGREE 189  
+#define SERVOUNITSPERDEGREE 178
   byte i;
   for (i=0; i < CNT_LEGS; i++) {
-	Orion.SetServoDegree(pgm_read_byte(&cCoxaPin[i]), SERVOUNITSPERDEGREE);
+	Orion.setServoDegree(pgm_read_byte(&cCoxaPin[i]), SERVOUNITSPERDEGREE);
 	//Orion.SetServoDir(pgm_read_byte(&cCoxaPin[i]), i < (CNT_LEGS/2));
-	Orion.SetServoDegree(pgm_read_byte(&cFemurPin[i]), SERVOUNITSPERDEGREE);
+	Orion.setServoDegree(pgm_read_byte(&cFemurPin[i]), SERVOUNITSPERDEGREE);
 	//Orion.SetServoDir(pgm_read_byte(&cFemurPin[i]), i < (CNT_LEGS/2));
-	Orion.SetServoDegree(pgm_read_byte(&cTibiaPin[i]), SERVOUNITSPERDEGREE);
+	Orion.setServoDegree(pgm_read_byte(&cTibiaPin[i]), SERVOUNITSPERDEGREE);
 	//Orion.SetServoDir(pgm_read_byte(&cTibiaPin[i]), i < (CNT_LEGS/2));
 #ifdef c4DOF
-	Orion.SetServoDegree(pgm_read_byte(&cTarsPin[i]), SERVOUNITSPERDEGREE);
+	Orion.setServoDegree(pgm_read_byte(&cTarsPin[i]), SERVOUNITSPERDEGREE);
 	//Orion.SetServoDir(pgm_read_byte(&cTarsPin[i]), i < (CNT_LEGS/2));
 #endif
   }
-  
+#endif  
 
 #ifdef OPT_GPPLAYER
   _fGPEnabled = false;  // starts off assuming that it is not enabled...
@@ -94,6 +98,7 @@ void ServoDriver::Init(void) {
 // or if maybe some minimum time has elapsed...
 //--------------------------------------------------------------------
 
+#ifdef cTurnOffVol
 #ifdef cVoltagePin  
 #ifndef CVADR1
 #define CVADR1      30  // VD Resistor 1 - reduced as only need ratio... 30K and 10K
@@ -114,6 +119,12 @@ word ServoDriver::GetBatteryVoltage(void) {
   return ((long)((long)g_wVoltageSum*125*(CVADR1+CVADR2))/(long)(2048*(long)CVADR2));  
 
 }
+#else
+word ServoDriver::GetBatteryVoltage(void) {
+    return Orion.queryVoltage();
+}
+#endif
+
 #endif
 //--------------------------------------------------------------------
 //[GP PLAYER]
@@ -174,38 +185,34 @@ void ServoDriver::GPSetSpeedMultiplyer(short sm)      // Set the Speed multiplie
 //------------------------------------------------------------------------------------------
 void ServoDriver::BeginServoUpdate(void)    // Start the update 
 {
+    MakeSureServosAreOn();
 }
 
 //------------------------------------------------------------------------------------------
 //[OutputServoInfoForLeg] Do the output to the SSC-32 for the servos associated with
 //         the Leg number passed in.
 //------------------------------------------------------------------------------------------
-// These are from the SSC32 driver...
-#define cPwmDiv       1059 //991  //old 1059;
-#define cPFConst      650  //592  //old 650 ; 900*(1000/cPwmDiv)+cPFConst must always be 1500
-// A PWM/deg factor of 10,09 give cPwmDiv = 991 and cPFConst = 592
-// For a modified 5645 (to 180 deg travel): cPwmDiv = 1500 and cPFConst = 900.
-
-// Will modify this to convert to HSERVO units...
-#define MAXHSERVO	14800   // Ran into issue when we go too large...
-#define AngleToHSERVO(_Angle_) min((((((long)(_Angle_ +900))*1000/cPwmDiv+cPFConst)-1500)*20), MAXHSERVO)
-
-// This is the calculation done with Arc32 code...
-//#define AngleToHSERVO(_Angle_) (((long)_Angle_ * StepsPerDegree) / 10)
-
-#define StepsPerDegree 200
 #ifdef c4DOF
 void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1, short sTarsAngle1)
 #else
 void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1)
 #endif    
 {   
-	Orion.SetAngle(pgm_read_byte(&cCoxaPin[LegIndex]), sCoxaAngle1);
-	Orion.SetAngle(pgm_read_byte(&cFemurPin[LegIndex]), sFemurAngle1);
-	Orion.SetAngle(pgm_read_byte(&cTibiaPin[LegIndex]), sTibiaAngle1);
+    if (g_fDebugServos) {
+        DBGSerial.print(sCoxaAngle1, DEC);
+        DBGSerial.print(",");
+        DBGSerial.print(sFemurAngle1, DEC);
+        DBGSerial.print(",");
+        DBGSerial.print(sTibiaAngle1, DEC);
+        DBGSerial.print(" ");
+    } else {
+        Orion.setAngle(pgm_read_byte(&cCoxaPin[LegIndex]), sCoxaAngle1);
+        Orion.setAngle(pgm_read_byte(&cFemurPin[LegIndex]), sFemurAngle1);
+        Orion.setAngle(pgm_read_byte(&cTibiaPin[LegIndex]), sTibiaAngle1);
 #ifdef c4DOF
-	Orion.SetAngle(pgm_read_byte(&cTarsPin[LegIndex]), sTarsAngle1);
+        Orion.setAngle(pgm_read_byte(&cTarsPin[LegIndex]), sTarsAngle1);
 #endif
+    }
 }
 
 
@@ -217,9 +224,13 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
 //--------------------------------------------------------------------
 void ServoDriver::CommitServoDriver(word wMoveTime)
 {
-	Orion.SetTime(wMoveTime);
-    Orion.Execute();
-
+    if (g_fDebugServos) {
+        DBGSerial.print(F(" T: "));
+        DBGSerial.println(wMoveTime, DEC);
+    } else {
+        Orion.setTime(wMoveTime);
+        Orion.execute();
+    }
 }
 
 //--------------------------------------------------------------------
@@ -228,15 +239,46 @@ void ServoDriver::CommitServoDriver(word wMoveTime)
 void ServoDriver::FreeServos(void)
 {
 	for (byte LegIndex=0; LegIndex < 6; LegIndex++) {
-		Orion.StopPulse(pgm_read_byte(&cCoxaPin[LegIndex]));
-		Orion.StopPulse(pgm_read_byte(&cFemurPin[LegIndex]));
-		Orion.StopPulse(pgm_read_byte(&cTibiaPin[LegIndex]));
+		Orion.stopPulse(pgm_read_byte(&cCoxaPin[LegIndex]));
+		Orion.stopPulse(pgm_read_byte(&cFemurPin[LegIndex]));
+		Orion.stopPulse(pgm_read_byte(&cTibiaPin[LegIndex]));
 #ifdef c4DOF
-		Orion.StopPulse(pgm_read_byte(&cTarsPin[LegIndex]));
+		Orion.stopPulse(pgm_read_byte(&cTarsPin[LegIndex]));
 #endif
 	}
 	g_fServosAttached = false;
 }
+
+//--------------------------------------------------------------------
+//[MakeSureServosAreOn] Function that is called to handle when you are
+//  transistioning from servos all off to being on.  May need to read
+//  in the current pose...
+//--------------------------------------------------------------------
+boolean MakeSureServosAreOn(void)
+{
+    if (g_fServosAttached)
+      return false;    // Servos are alreaddy attached.
+
+    g_InputController.AllowControllerInterrupts(false);    // If on xbee on hserial tell hserial to not processess...
+
+   //Tell all of the servos to go to where they already are...
+    Orion.setTime(0);
+	for (byte LegIndex=0; LegIndex < 6; LegIndex++) {
+		Orion.setAngle(pgm_read_byte(&cCoxaPin[LegIndex]), Orion.queryFBAngle(pgm_read_byte(&cCoxaPin[LegIndex])));
+		Orion.setAngle(pgm_read_byte(&cFemurPin[LegIndex]), Orion.queryFBAngle(pgm_read_byte(&cFemurPin[LegIndex])));
+		Orion.setAngle(pgm_read_byte(&cTibiaPin[LegIndex]), Orion.queryFBAngle(pgm_read_byte(&cTibiaPin[LegIndex])));
+#ifdef c4DOF
+		Orion.setAngle(pgm_read_byte(&cTarsPin[LegIndex]), Orion.queryFBAngle(pgm_read_byte(&cTarsPin[LegIndex])));
+#endif
+	}
+    Orion.execute();
+
+    g_InputController.AllowControllerInterrupts(true);    
+    g_fServosAttached = true;
+    
+    return true;
+}
+
 
 #ifdef OPT_TERMINAL_MONITOR  
 extern void FindServoOffsets(void);
@@ -247,6 +289,7 @@ extern void FindServoOffsets(void);
 //==============================================================================
 void ServoDriver::ShowTerminalCommandList(void) 
 {
+    DBGSerial.println(F("S - Servo Debug Toggle"));
 #ifdef OPT_FIND_SERVO_OFFSETS
   DBGSerial.println(F("O - Enter Servo offset mode"));
 #endif        
@@ -258,6 +301,16 @@ void ServoDriver::ShowTerminalCommandList(void)
 //==============================================================================
 boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
 {
+  if ((bLen == 1) && ((*psz == 's') || (*psz == 'S'))) {
+        if (g_fDebugServos) {
+            g_fDebugServos = false;
+            DBGSerial.println("Servo Debug Off");
+        }
+        else {
+            g_fDebugServos = true;
+            DBGSerial.println("Servo Debug On");
+        }
+    }
 #ifdef OPT_FIND_SERVO_OFFSETS
   if ((bLen == 1) && ((*psz == 'o') || (*psz == 'O'))) {
     FindServoOffsets();
@@ -279,7 +332,7 @@ void AllLegServos1500()
 		Orion.SetPulse(pgm_read_byte(&cTarsPin[LegIndex]), 0);
 #endif
 	}
-	Orion.Execute();
+	Orion.execute();
 }
 
 
@@ -292,12 +345,12 @@ void WaitForNoServosMoving(void) {
 }		
 
 //==============================================================================
-// MOveServo
+// MoveServo
 //==============================================================================
 void MoveServo(byte iServo, short pulse, word time) {
 	Orion.SetPulse(iServo, pulse);
-	Orion.SetTime(time);
-	Orion.Execute();
+	Orion.setTime(time);
+	Orion.execute();
 }
 
 
