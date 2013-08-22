@@ -75,7 +75,7 @@ boolean g_fServosFree;    // Are the servos in a free state?
 
 
 // Not sure if pragma needed or not...
-#pragma pack(1)
+//#pragma pack(1)
 typedef struct {
   byte  bSeqNum;       // the sequence number, used to verify
   byte  bCntServos;    // count of servos
@@ -448,7 +448,7 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
       g_awGoalAXPos[FIRSTFEMURPIN+LegIndex] = wFemurSSCV;    
       g_awGoalAXPos[FIRSTTIBIAPIN+LegIndex] = wTibiaSSCV;    
 #ifdef c4DOF
-      g_awGoalAXPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;   // KevinO change - was it a typo or function change at one time?
+      g_awGoalAXTarsPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;    
 #endif
 #endif
     }
@@ -595,7 +595,9 @@ void ServoDriver::FreeServos(void)
 }
 
 //--------------------------------------------------------------------
-//[FREE SERVOS] Frees all the servos
+//[MakeSureServosAreOn] Function that is called to handle when you are
+//  transistioning from servos all off to being on.  May need to read
+//  in the current pose...
 //--------------------------------------------------------------------
 void MakeSureServosAreOn(void)
 {
@@ -656,9 +658,6 @@ void ServoDriver::ShowTerminalCommandList(void)
 #ifdef OPT_FIND_SERVO_OFFSETS
   DBGSerial.println(F("O - Enter Servo offset mode"));
 #endif        
-#ifdef OPT_SSC_FORWARDER
-  DBGSerial.println(F("S - SSC Forwarder"));
-#endif        
 }
 
 //==============================================================================
@@ -717,32 +716,15 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
     FindServoOffsets();
   }
 #endif
-#ifdef OPT_SSC_FORWARDER
-  else if ((bLen == 1) && ((*psz == 's') || (*psz == 'S'))) {
-    SSCForwarder();
-  }
-#endif
 #ifdef OPT_PYPOSE
   else if ((*psz == 'p') || (*psz == 'P')) {
     DoPyPose(++psz);
   }
 #endif
+   return false;
 
 }
 #endif    
-
-
-//==============================================================================
-// SSC Forwarder - used to allow things like Lynxterm to talk to the SSC-32 
-// through the Arduino...  Will see if it is fast enough...
-//==============================================================================
-#ifdef OPT_SSC_FORWARDER
-void  SSCForwarder(void) 
-{
-}
-#endif // OPT_SSC_FORWARDER
-
-
 
 
 

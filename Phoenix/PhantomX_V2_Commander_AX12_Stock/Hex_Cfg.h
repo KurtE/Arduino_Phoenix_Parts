@@ -43,7 +43,7 @@
 #ifdef DBGSerial
 #define OPT_TERMINAL_MONITOR  
 //#define OPT_FIND_SERVO_OFFSETS    // Only useful if terminal monitor is enabled
-#define OPT_PYPOSE
+//#define OPT_PYPOSE
 #endif
 
 //#define DEBUG_IOPINS
@@ -126,26 +126,27 @@
 
 
 //--------------------------------------------------------------------
+//[MIN/MAX ANGLES] - Start off assume same as Phoenix...
 #define cRRCoxaMin1    -750
 #define cRRCoxaMax1    750
 #define cRRFemurMin1    -1000
 #define cRRFemurMax1    1000
-#define cRRTibiaMin1    -670
-#define cRRTibiaMax1    1020
+#define cRRTibiaMin1    -1020
+#define cRRTibiaMax1    670
 
 #define cRMCoxaMin1    -750    //Mechanical limits of the Right Middle Leg, decimals = 1
 #define cRMCoxaMax1     750
 #define cRMFemurMin1     -1000
 #define cRMFemurMax1     1000
-#define cRMTibiaMin1    -670
-#define cRMTibiaMax1     1020
+#define cRMTibiaMin1    -1020
+#define cRMTibiaMax1     670
 
 #define cRFCoxaMin1    -750    //Mechanical limits of the Right Front Leg, decimals = 1
 #define cRFCoxaMax1     750
 #define cRFFemurMin1    -1000
 #define cRFFemurMax1    1000
-#define cRFTibiaMin1    -670
-#define cRFTibiaMax1    1020
+#define cRFTibiaMin1    -1020
+#define cRFTibiaMax1    670
 
 #define cLRCoxaMin1    -750    //Mechanical limits of the Left Rear Leg, decimals = 1
 #define cLRCoxaMax1     750
