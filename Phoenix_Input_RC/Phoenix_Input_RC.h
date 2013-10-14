@@ -102,6 +102,19 @@ void InputController::ControlInput(void)
 {
     // See if we have valid data...
     // Will start of just trying out seeing if we have a complete set of data...
+#ifdef DEBUG_RC    
+    if (g_fRCDataChanged) {
+        Serial.print(g_bRCValidBits, HEX);
+        Serial.print(": ");
+        for (int i=0; i < RCPIN_COUNT; i++) {
+            Serial.print(g_awRCTimes[i], DEC);
+            Serial.print(" ");
+        }
+        Serial.println();
+        g_fRCDataChanged = false;
+    }    
+#endif    
+    
     if (g_bRCValidBits == RC_VALID_PIN_MASK) {
         // Have valid data so make sure the robot is on...
         g_bRCErrorCnt = 0;    // clear out error count...
