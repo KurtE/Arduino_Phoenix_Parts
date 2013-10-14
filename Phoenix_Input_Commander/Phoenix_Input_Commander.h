@@ -364,7 +364,7 @@ void CommanderInputController::ControlInput(void)
       else
       {
         g_InControlState.TravelLength.x = -command.RightH;
-        g_InControlState.TravelLength.z = command.RightV;
+        g_InControlState.TravelLength.z = -command.RightV;
       }
 
       if (!DoubleTravelOn) {  //(Double travel length)
