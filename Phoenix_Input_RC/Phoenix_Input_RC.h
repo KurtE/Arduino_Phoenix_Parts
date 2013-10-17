@@ -160,7 +160,7 @@ void InputController::ControlInput(void)
       // Body Height...
       g_InControlState.BodyPos.y = (max(g_awRCTimes[RCC_LUD], 1100)-1100) / 6;
 
-      if (ControlMode == TRANSLATEMODE) {
+      if (ControlMode == WALKMODE) {
           g_InControlState.TravelLength.x = -(g_awRCTimes[RCC_RLR] - 1500) / 3;
           g_InControlState.TravelLength.z = -(g_awRCTimes[RCC_RUD] - 1500) / 3;	
           g_InControlState.TravelLength.y = -(g_awRCTimes[RCC_LLR] - 1500)/10;
