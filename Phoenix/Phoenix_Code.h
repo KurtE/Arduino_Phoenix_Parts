@@ -978,7 +978,7 @@ void StartUpdateServos()
         cCoxaInv[LegIndex]? -CoxaAngle1[LegIndex] : CoxaAngle1[LegIndex], 
         cFemurInv[LegIndex]? -FemurAngle1[LegIndex] : FemurAngle1[LegIndex], 
         cTibiaInv[LegIndex]? -TibiaAngle1[LegIndex] : TibiaAngle1[LegIndex], 
-        cTarsInv[LegIndex]? -TarsAngle1[LegIndex]) : TarsAngle1[LegIndex]);
+        cTarsInv[LegIndex]? -TarsAngle1[LegIndex] : TarsAngle1[LegIndex]);
 #else
     g_ServoDriver.OutputServoInfoForLeg(LegIndex, 
         cCoxaInv[LegIndex]? -CoxaAngle1[LegIndex] : CoxaAngle1[LegIndex], 
