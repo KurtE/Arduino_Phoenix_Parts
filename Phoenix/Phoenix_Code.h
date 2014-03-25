@@ -502,7 +502,6 @@ boolean         AllDown;
 //[gait - State]
 // Note: Information about the current gait is now part of the g_InControlState...
 boolean         TravelRequest;          //Temp to check if the gait is in motion
-byte            GaitStep;            	//Actual Gait step
 
 long            GaitPosX[CNT_LEGS];         //Array containing Relative X position corresponding to the Gait
 long            GaitPosY[CNT_LEGS];         //Array containing Relative Y position corresponding to the Gait
@@ -631,13 +630,15 @@ void setup(){
   LedC = 0;
   Eyes = 0;
 
-  //Tars Init Positions
+  // Setup Init Positions
   for (LegIndex= 0; LegIndex < CNT_LEGS; LegIndex++ )
   {
     LegPosX[LegIndex] = (short)pgm_read_word(&cInitPosX[LegIndex]);    //Set start positions for each leg
     LegPosY[LegIndex] = (short)pgm_read_word(&cInitPosY[LegIndex]);
     LegPosZ[LegIndex] = (short)pgm_read_word(&cInitPosZ[LegIndex]);  
   }
+
+  ResetLegInitAngles();
 
   //Single leg control. Make sure no leg is selected
   g_InControlState.SelectedLeg = 255; // No Leg selected
@@ -662,8 +663,13 @@ void setup(){
   g_InControlState.BalanceMode = 0;
   g_InControlState.LegLiftHeight = 50;
   g_InControlState.ForceGaitStepCnt = 0;    // added to try to adjust starting positions depending on height...
-  GaitStep = 1;
+  g_InControlState.GaitStep = 1;
   GaitSelect();
+
+#ifdef cTurretRotPin
+  g_InControlState.TurretRotAngle1 = cTurretRotInit;      // Rotation of turrent in 10ths of degree
+  g_InControlState.TurretTiltAngle1 = cTurretTiltInit;    // the tile for the turret
+#endif
 
   g_InputController.Init();
 
@@ -796,6 +802,13 @@ void loop(void)
   IKSolutionError = 0 ;
 
   //Do IK for all Right legs
+#ifdef DEBUG
+    if (g_fDebugOutput && g_InControlState.fRobotOn) {
+        DBGSerial.print(g_InControlState.GaitStep,DEC);
+        DBGSerial.print(":");
+    }
+#endif
+
   for (LegIndex = 0; LegIndex < (CNT_LEGS/2); LegIndex++) {    
     DoBackgroundProcess();
     BodyFK(-LegPosX[LegIndex]+g_InControlState.BodyPos.x+GaitPosX[LegIndex] - TotalTransX,
@@ -898,7 +911,7 @@ void loop(void)
         DBGSerial.print("W?:");
          DBGSerial.print(fWalking,DEC);  
          DBGSerial.print(" GS:");
-         DBGSerial.print(GaitStep,DEC);  
+         DBGSerial.print(g_InControlState.GaitStep,DEC);  
          //Debug LF leg
          DBGSerial.print(" GPZ:");
          DBGSerial.print(GaitPosZ[cLF],DEC);
@@ -946,6 +959,10 @@ void loop(void)
       g_ServoDriver.FreeServos();
       Eyes = 0;
     }
+
+    // Allow the Servo driver to do stuff durint our idle time
+    g_ServoDriver.IdleTime();
+
     // We also have a simple debug monitor that allows us to 
     // check things. call it here..
 #ifdef OPT_TERMINAL_MONITOR  
@@ -978,7 +995,7 @@ void StartUpdateServos()
         cCoxaInv[LegIndex]? -CoxaAngle1[LegIndex] : CoxaAngle1[LegIndex], 
         cFemurInv[LegIndex]? -FemurAngle1[LegIndex] : FemurAngle1[LegIndex], 
         cTibiaInv[LegIndex]? -TibiaAngle1[LegIndex] : TibiaAngle1[LegIndex], 
-        cTarsInv[LegIndex]? -TarsAngle1[LegIndex] : TarsAngle1[LegIndex]);
+        cTarsInv[LegIndex]? -TarsAngle1[LegIndex]) : TarsAngle1[LegIndex]);
 #else
     g_ServoDriver.OutputServoInfoForLeg(LegIndex, 
         cCoxaInv[LegIndex]? -CoxaAngle1[LegIndex] : CoxaAngle1[LegIndex], 
@@ -986,6 +1003,9 @@ void StartUpdateServos()
         cTibiaInv[LegIndex]? -TibiaAngle1[LegIndex] : TibiaAngle1[LegIndex]);
 #endif      
   }
+#ifdef cTurretRotPin
+  g_ServoDriver.OutputServoInfoForTurret(g_InControlState.TurretRotAngle1, g_InControlState.TurretTiltAngle1);  // fist just see if it will talk
+#endif  
 }
 
 
@@ -1173,11 +1193,11 @@ void GaitSeq(void)
 #ifdef QUADCODE
 		// just start walking - Try to guess a good foot to start off on...
 		if (g_InControlState.TravelLength.z < 0) 
-			GaitStep = ((g_InControlState.TravelLength.X < 0)? g_InControlState.gaitCur.GaitLegNr[cLR] : g_InControlState.gaitCur.GaitLegNr[cRR]);
+            g_InControlState.GaitStep = ((g_InControlState.TravelLength.X < 0)? g_InControlState.gaitCur.GaitLegNr[cLR] : g_InControlState.gaitCur.GaitLegNr[cRR]);
 		else 
-			GaitStep = ((g_InControlState.TravelLength.X < 0)? g_InControlState.gaitCur.GaitLegNr[cLF] : g_InControlState.gaitCur.GaitLegNr[cRF]);
+            g_InControlState.GaitStep = ((g_InControlState.TravelLength.X < 0)? g_InControlState.gaitCur.GaitLegNr[cLF] : g_InControlState.gaitCur.GaitLegNr[cRF]);
 		// And lets backup a few Gaitsteps before this to allow it to start the up swing... 
-		GaitStep = ((GaitStep > g_InControlState.gaitCur.FrontDownPos)? (GaitStep - g_InControlState.gaitCur.FrontDownPos) : (GaitStep + g_InControlState.gaitCur.StepsInGait - g_InControlState.gaitCur.FrontDownPos);
+        g_InControlState.GaitStep = ((g_InControlState.GaitStep > g_InControlState.gaitCur.FrontDownPos)? (g_InControlState.GaitStep - g_InControlState.gaitCur.FrontDownPos) : (g_InControlState.GaitStep + g_InControlState.gaitCur.StepsInGait - g_InControlState.gaitCur.FrontDownPos);
 #endif		
     }
     else {    //Clear values under the cTravelDeadZone
@@ -1193,9 +1213,9 @@ void GaitSeq(void)
   }    // next leg
 
   //Advance to the next step
-  GaitStep++;
-  if (GaitStep>g_InControlState.gaitCur.StepsInGait)
-    GaitStep = 1;
+  g_InControlState.GaitStep++;
+  if (g_InControlState.GaitStep>g_InControlState.gaitCur.StepsInGait)
+    g_InControlState.GaitStep = 1;
 
   // If we have a force count decrement it now... 
   if (g_InControlState.ForceGaitStepCnt)
@@ -1209,7 +1229,7 @@ void Gait (byte GaitCurrentLegNr)
 {
 
   // Try to reduce the number of time we look at GaitLegnr and Gaitstep
-  short int LegStep = GaitStep - g_InControlState.gaitCur.GaitLegNr[GaitCurrentLegNr];
+  short int LegStep = g_InControlState.GaitStep - g_InControlState.gaitCur.GaitLegNr[GaitCurrentLegNr];
 
   //Leg middle up position OK
   //Gait in motion	                                                                                  
@@ -1387,9 +1407,9 @@ void BalanceBody(void)
 
       if (COGShiftNeeded) {
         if (g_InControlState.gaitCur.COGCCW) {
-          COGAngle1 = g_InControlState.gaitCur.COGAngleStart1 - (GaitStep-1) * g_InControlState.gaitCur.COGAngleStep1;
+          COGAngle1 = g_InControlState.gaitCur.COGAngleStart1 - (g_InControlState.GaitStep-1) * g_InControlState.gaitCur.COGAngleStep1;
         } else {
-          COGAngle1 = g_InControlState.gaitCur.COGAngleStart1 + (GaitStep-1) * g_InControlState.gaitCur.COGAngleStep1;
+          COGAngle1 = g_InControlState.gaitCur.COGAngleStart1 + (g_InControlState.GaitStep-1) * g_InControlState.gaitCur.COGAngleStep1;
         }
         GetSinCos(COGAngle1);
         TotalTransX = (long)g_InControlState.gaitCur.COGRadius * (long)sin4 / c4DEC;
@@ -1423,8 +1443,8 @@ void BalanceBody(void)
           DBGSerial.print(" TotalTransZ: ");
           DBGSerial.println(TotalTransZ, DEC);
         }
-      }  
 #endif
+      }  
   } 
 #endif  
 }
@@ -1788,7 +1808,7 @@ void LegIK (short IKFeetPosX, short IKFeetPosY, short IKFeetPosZ, byte LegIKLegN
     else
       IKSolutionError = 1    ;
   }
-#ifdef DEBUG_IK
+#ifdef DEBUG
     if (g_fDebugOutput && g_InControlState.fRobotOn) {
         DBGSerial.print("(");
         DBGSerial.print(IKFeetPosX, DEC);
@@ -1887,12 +1907,46 @@ short SmoothControl (short CtrlMoveInp, short CtrlMoveOut, byte CtrlDivider)
 
 
 //--------------------------------------------------------------------
+// GetLegsXZLength - 
+//--------------------------------------------------------------------
+word g_wLegsXZLength = 0xffff;
+word GetLegsXZLength(void) 
+{
+    // Could save away or could do a little math on one leg... 
+    if (g_wLegsXZLength != 0xffff)
+        return g_wLegsXZLength;
+        
+    return isqrt32((LegPosX[0] * LegPosX[0]) + (LegPosZ[0] * LegPosZ[0]));
+}
+
+
+//--------------------------------------------------------------------
 // AdjustLegPositions() - Will adjust the init leg positions to the
 //      width passed in.
 //--------------------------------------------------------------------
+#ifndef MIN_XZ_LEG_ADJUST 
+#define MIN_XZ_LEG_ADJUST (cCoxaLength[0])      // don't go inside coxa...
+#endif
+
+#ifndef MAX_XZ_LEG_ADJUST
+#define MAX_XZ_LEG_ADJUST   (cCoxaLength[0]+cTibiaLength[0] + cFemurLength[0]/4) 
+#endif
+
 void AdjustLegPositions(word XZLength1) 
 {
     //now lets see what happens when we change the leg positions...
+    if (XZLength1 > MAX_XZ_LEG_ADJUST)
+        XZLength1 = MAX_XZ_LEG_ADJUST;
+    if (XZLength1 < MIN_XZ_LEG_ADJUST)
+        XZLength1 = MIN_XZ_LEG_ADJUST;
+        
+    // see if same length as when we came in
+    if (XZLength1 == g_wLegsXZLength)
+        return;
+
+    g_wLegsXZLength = XZLength1;
+    
+        
     for (uint8_t LegIndex = 0; LegIndex < CNT_LEGS; LegIndex++) {
 #ifdef DEBUG
       if (g_fDebugOutput) {
@@ -1903,10 +1957,14 @@ void AdjustLegPositions(word XZLength1)
         DBGSerial.print(")->");
       }
 #endif
+#ifdef ADJUSTABLE_LEG_ANGLES
+      GetSinCos(g_InControlState.aCoxaInitAngle1[LegIndex]);
+#else
 #ifdef cRRInitCoxaAngle1    // We can set different angles for the legs than just where they servo horns are set...
       GetSinCos((short)pgm_read_word(&cCoxaInitAngle1[LegIndex]));
 #else
       GetSinCos((short)pgm_read_word(&cCoxaAngle1[LegIndex]));
+#endif      
 #endif      
       LegPosX[LegIndex] = ((long)((long)cos4 * XZLength1))/c4DEC;  //Set start positions for each leg
       LegPosZ[LegIndex] = -((long)((long)sin4 * XZLength1))/c4DEC;
@@ -1929,10 +1987,48 @@ void AdjustLegPositions(word XZLength1)
     g_InControlState.ForceGaitStepCnt = g_InControlState.gaitCur.StepsInGait;
 }
 
-word GetLegsXZLength(void) 
+//--------------------------------------------------------------------
+// ResetLegInitAngles - This is used when we allow the user to 
+// adjust the leg position angles.  This resets to what it was when the
+// the program was started.
+//--------------------------------------------------------------------
+void ResetLegInitAngles(void)
 {
-    // Could save away or could do a little math on one leg... 
-    return isqrt32((LegPosX[0] * LegPosX[0]) + (LegPosZ[0] * LegPosZ[0]));
+#ifdef ADJUSTABLE_LEG_ANGLES
+    for (int LegIndex=0; LegIndex < CNT_LEGS; LegIndex++) {
+#ifdef cRRInitCoxaAngle1    // We can set different angles for the legs than just where they servo horns are set...
+            g_InControlState.aCoxaInitAngle1[LegIndex] = (short)pgm_read_word(&cCoxaInitAngle1[LegIndex]);
+#else
+            g_InControlState.aCoxaInitAngle1[LegIndex] = (short)pgm_read_word(&cCoxaAngle1[LegIndex]);
+#endif
+    }
+    g_wLegsXZLength = 0xffff;
+#endif      
+}
+
+//--------------------------------------------------------------------
+// ResetLegInitAngles - This is used when we allow the user to 
+//--------------------------------------------------------------------
+void RotateLegInitAngles (int iDeltaAngle)
+{
+#ifdef ADJUSTABLE_LEG_ANGLES
+    for (int LegIndex=0; LegIndex < CNT_LEGS; LegIndex++) {
+        // We will use the cCoxaAngle1 array to know which direction the legs logically are
+        // If the initial angle is 0 don't mess with.  Hex middle legs...
+        if ((short)pgm_read_word(&cCoxaAngle1[LegIndex]) > 0) 
+            g_InControlState.aCoxaInitAngle1[LegIndex] += iDeltaAngle;
+         else if ((short)pgm_read_word(&cCoxaAngle1[LegIndex]) < 0)
+            g_InControlState.aCoxaInitAngle1[LegIndex] -= iDeltaAngle;
+        
+        // Make sure we don't exceed some min/max angles.
+        // Right now hard coded to +-70 degrees... Should probably load
+        if (g_InControlState.aCoxaInitAngle1[LegIndex] > 700)
+            g_InControlState.aCoxaInitAngle1[LegIndex] = 700;
+        else if (g_InControlState.aCoxaInitAngle1[LegIndex] < -700)
+            g_InControlState.aCoxaInitAngle1[LegIndex] = -700;
+    }
+    g_wLegsXZLength = 0xffff;
+#endif
 }
 
 //--------------------------------------------------------------------
@@ -1984,6 +2080,7 @@ void AdjustLegPositionsToBodyHeight()
 #ifdef SOUND_PIN
 void SoundNoTimer(unsigned long duration,  unsigned int frequency)
 {
+#ifndef __MK20DX256__
 #ifdef __AVR__
   volatile uint8_t *pin_port;
   volatile uint8_t pin_mask;
@@ -2012,7 +2109,31 @@ void SoundNoTimer(unsigned long duration,  unsigned int frequency)
     delayMicroseconds(lusDelayPerHalfCycle);
   }    
   *pin_port &= ~(pin_mask);  // keep pin low after stop
+#else
+// The tone command does sort of work, but does not play multiple sounds smoothly
+//  tone(SOUND_PIN, frequency, duration);  // Try the arduino library
+//  delay(duration);
+  // Try to get something working on DUE...
+  long toggle_count = 0;
+  long lusDelayPerHalfCycle;
+  boolean fHigh = false;
+  // Set the pinMode as OUTPUT
+  pinMode(SOUND_PIN, OUTPUT);
+  digitalWrite(SOUND_PIN, LOW);
+  toggle_count = 2 * frequency * duration / 1000;
+  lusDelayPerHalfCycle = 1000000L/(frequency * 2);
 
+  // if we are using an 8 bit timer, scan through prescalars to find the best fit
+  while (toggle_count--) {
+    // toggle the pin
+    fHigh  = !fHigh;
+    digitalWrite(SOUND_PIN, fHigh? LOW : HIGH);
+    // delay a half cycle
+    delayMicroseconds(lusDelayPerHalfCycle);
+  }    
+  digitalWrite(SOUND_PIN, LOW);
+
+#endif
 }
 
 void MSound(byte cNotes, ...)
@@ -2063,6 +2184,10 @@ boolean TerminalMonitor(void)
 	DBGSerial.println(F("B <percent>"));
 	DBGSerial.println(F("G ST NL RR RF LR LF"));
 #endif
+#ifdef OPT_TERMINAL_MONITOR_IC    // Allow the input controller to define stuff as well
+    g_InputController.ShowTerminalCommandList(); 
+#endif      
+
     // Let the Servo driver show it's own set of commands...
     g_ServoDriver.ShowTerminalCommandList();
     g_fShowDebugPrompt = false;
@@ -2080,12 +2205,22 @@ boolean TerminalMonitor(void)
       szCmdLine[ich] = ch;
     }
     szCmdLine[ich] = '\0';    // go ahead and null terminate it...
+    
+    // Remove any extra EOL characters that may have been added
+    for (;;) {
+      ch = DBGSerial.peek();
+      if ((ch >= 10) && (ch <= 15))
+        DBGSerial.read();
+      else
+        break;
+    }
+    if (ich) {
     DBGSerial.print(F("Serial Cmd Line:"));        
     DBGSerial.write(szCmdLine, ich);
     DBGSerial.println(F("<eol>"));
-
+    }
     // So see what are command is.
-    if (ich == 0) {
+    if (!ich)  {
       g_fShowDebugPrompt = true;
     } 
     else if ((ich == 1) && ((szCmdLine[0] == 'd') || (szCmdLine[0] == 'D'))) {
@@ -2105,6 +2240,11 @@ boolean TerminalMonitor(void)
       UpdateGaitCmd(szCmdLine);
     } 
 #endif
+#ifdef OPT_TERMINAL_MONITOR_IC    // Allow the input controller to define stuff as well
+    else if (g_InputController.ProcessTerminalCommand(szCmdLine, ich)) 
+      ;  // See if the Input controller has added commands...
+#endif      
+
     else
     {
       g_ServoDriver.ProcessTerminalCommand(szCmdLine, ich);

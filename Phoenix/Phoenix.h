@@ -4,7 +4,7 @@
 //
 //Programmer: Jeroen Janssen [aka Xan]
 //         Kurt Eckhardt(KurtE) converted to C and Arduino
-//   Kåre Halvorsen aka Zenta - Makes everything work correctly!     
+//   Kare Halvorsen aka Zenta - Makes everything work correctly!     
 //
 // This version of the Phoenix code was ported over to the Arduino Environement
 //
@@ -58,9 +58,11 @@
 #define	c6DEC		1000000
 
 #ifdef QUADMODE
-enum {cRR=0, cRF, cLR, cLF, CNT_LEGS};
+enum {
+  cRR=0, cRF, cLR, cLF, CNT_LEGS};
 #else
-enum {cRR=0, cRM, cRF, cLR, cLM, cLF, CNT_LEGS};
+enum {
+  cRR=0, cRM, cRF, cLR, cLM, cLF, CNT_LEGS};
 #endif
 
 #define	WTIMERTICSPERMSMUL  	64	// BAP28 is 16mhz need a multiplyer and divider to make the conversion with /8192
@@ -90,6 +92,8 @@ extern boolean CheckVoltage(void);
 word GetLegsXZLength(void);
 void AdjustLegPositions(word XZLength1);
 void AdjustLegPositionsToBodyHeight();
+void ResetLegInitAngles(void);
+void RotateLegInitAngles (int iDeltaAngle);
 
 // debug handler...
 extern boolean g_fDBGHandleError;
@@ -141,8 +145,14 @@ public:
     virtual void     ControlInput(void);
     virtual void     AllowControllerInterrupts(boolean fAllow);
 
+#ifdef OPT_TERMINAL_MONITOR_IC  // Allow Input controller to define stuff as well
+  void            ShowTerminalCommandList(void);
+  boolean         ProcessTerminalCommand(byte *psz, byte bLen);
+#endif
+
 private:
-} ;   
+} 
+;   
 
 // Define a function that allows us to define which controllers are to be used.
 extern void  RegisterInputController(InputController *pic);
@@ -153,7 +163,8 @@ typedef struct _Coord3D {
   long      x;
   long      y;
   long      z;
-} COORD3D;
+} 
+COORD3D;
 
 //==============================================================================
 // Define Gait structure/class - Hopefully allow specific robots to define their
@@ -179,7 +190,8 @@ typedef struct _PhoenixGait {
 #ifdef DISPLAY_GAIT_NAMES
     PGM_P           pszName;             // The gait name
 #endif
-} PHOENIXGAIT;
+} 
+PHOENIXGAIT;
 
 #ifdef DISPLAY_GAIT_NAMES
 #define GATENAME(name)  ,name
@@ -204,10 +216,17 @@ typedef struct _InControlState {
 
   //[gait]
   byte			GaitType;			 //Gait type
+  byte          GaitStep;            //Actual current step in gait
   PHOENIXGAIT   gaitCur;             // Definition of the current gait
 
     short       LegLiftHeight;		 //Current Travel height
   COORD3D       TravelLength;        // X-Z or Length, Y is rotation.
+
+#ifdef cTurretRotPin
+  // Turret information
+  int           TurretRotAngle1;      // Rotation of turrent in 10ths of degree
+  int           TurretTiltAngle1;    // the tile for the turret
+#endif
 
   //[Single Leg Control]
   byte			SelectedLeg;
@@ -222,7 +241,15 @@ typedef struct _InControlState {
   byte			InputTimeDelay;	//Delay that depends on the input to get the "sneaking" effect
   word			SpeedControl;	//Adjustible Delay
   byte       ForceGaitStepCnt;          // new to allow us to force a step even when not moving
-} INCONTROLSTATE;
+
+#ifdef ADJUSTABLE_LEG_ANGLES
+  short         aCoxaInitAngle1[CNT_LEGS]; 
+#endif
+
+  // 
+
+} 
+INCONTROLSTATE;
 
 //==============================================================================
 //==============================================================================
@@ -236,9 +263,13 @@ public:
     word GetBatteryVoltage(void);
 
 #ifdef OPT_GPPLAYER    
-  inline boolean  FIsGPEnabled(void) {return _fGPEnabled;};
+  inline boolean  FIsGPEnabled(void) {
+    return _fGPEnabled;
+  };
   boolean         FIsGPSeqDefined(uint8_t iSeq);
-  inline boolean  FIsGPSeqActive(void) {return _fGPActive;};
+  inline boolean  FIsGPSeqActive(void) {
+    return _fGPActive;
+  };
   void            GPStartSeq(uint8_t iSeq);  // 0xff - says to abort...
   void            GPPlayer(void);
   uint8_t         GPNumSteps(void);          // How many steps does the current sequence have
@@ -251,8 +282,13 @@ public:
 #else
   void            OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1);
 #endif    
+#ifdef cTurretRotPin
+  void            OutputServoInfoForTurret(short sRotateAngle1, short sTiltAngle1);
+#endif
   void            CommitServoDriver(word wMoveTime);
   void            FreeServos(void);
+
+  void            IdleTime(void);        // called when the main loop when the robot is not on
 
     // Allow for background process to happen...
 #ifdef OPT_BACKGROUND_PROCESS
@@ -273,7 +309,8 @@ private:
     short    _sGPSM;        // Speed multiplier +-200 
 #endif
 
-} ;   
+} 
+;   
 
 //==============================================================================
 //==============================================================================

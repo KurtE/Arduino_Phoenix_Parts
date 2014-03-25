@@ -20,22 +20,21 @@
 //
 //  If this is not defined, The included Controller should simply implement the InputController Class...
 //==================================================================================================================================
-//#define USEMULTI
-//#define USEXBEE            // only allow to be defined on Megas...
-//#define USEPS2
 #define USECOMMANDER
 
 // Global defines to control which configuration we are using.  Note: Only define one of these...
 // 
 // Which type of control(s) do you want to compile in
-#ifdef USEXBEE    // some options only valid if running with XBEE stuff
-#define XBEE_DEBUG_OUTPUT    // use our xbee serial class to do debug stuff
-#define DBGSerial XBDSerial
+#if defined(__MK20DX256__)
+#define DBGSerial         Serial
+#else
+#if defined(UBRR2H)
+#define DBGSerial         Serial
+#endif
 #endif 
-//#define DBGSerial         Serial
 
 // Define other optional compnents to be included or not...
-//#define PHANTOMX_V2     // Some code may depend on it being a V2 PhantomX
+#define PHANTOMX_V2     // Some code may depend on it being a V2 PhantomX
 #define cFemurHornOffset1 -70
 #define cTibiaHornOffset1 380
 #define cRRTibiaInv 0 
@@ -50,6 +49,7 @@
 // Debug Options
 #ifdef DBGSerial
 #define OPT_TERMINAL_MONITOR  
+#define OPT_TERMINAL_MONITOR_IC    // Allow the input controller to define stuff as well
 //#define OPT_FIND_SERVO_OFFSETS    // Only useful if terminal monitor is enabled
 //#define OPT_PYPOSE
 #endif
@@ -79,19 +79,32 @@
 
 //====================================================================
 // XBEE on non mega???
+#if defined(__MK20DX256__)
+#define XBeeSerial Serial2
+#else
+#if defined(UBRR2H)
+#define XBeeSerial Serial2
+#endif
 #define XBeeSerial Serial
+#endif
 #define XBEE_BAUD        38400
-#define DISP_VOLTAGE    // User wants the Battery voltage to be displayed...
-#define DISP_VOLTAGE_TIME  1000  // how often to check and report in millis
 //--------------------------------------------------------------------
 //[Arbotix Pin Numbers]
+#if defined(__MK20DX256__)
+#define SOUND_PIN    6
+#else
 #define SOUND_PIN    1 //0xff        // Tell system we have no IO pin...
-#define PS2_DAT      A0        
-#define PS2_CMD      A1
-#define PS2_SEL      A2
-#define PS2_CLK      A3
+#define USER 0                        // defaults to 13 but Arbotix on 0...
+#endif
 
 // Define Analog pin and minimum voltage that we will allow the servos to run
+#if defined(__MK20DX256__)
+// Our Teensy board
+#define cVoltagePin  0
+#define CVADR1      402  // VD Resistor 1 - reduced as only need ratio... 40.2K and 10K
+#define CVADR2      100    // VD Resistor 2
+#define CVREF       330    // 3.3v
+#endif
 //#define cVoltagePin  7      // Use our Analog pin jumper here...
 //#define CVADR1      1000  // VD Resistor 1 - reduced as only need ratio... 20K and 4.66K
 //#define CVADR2      233   // VD Resistor 2
@@ -99,11 +112,16 @@
 #define cTurnOnVol   1100     // 11V - optional part to say if voltage goes back up, turn it back on...
 
 //====================================================================
-#define  DEFAULT_GAIT_SPEED 50  // Default gait speed  - Will depend on what Servos you are using...
+#define  DEFAULT_GAIT_SPEED 35  // Default gait speed  - Will depend on what Servos you are using...
 #define  DEFAULT_SLOW_GAIT  50  // Had a couple different speeds...
 
 //====================================================================
-
+// Defines for Optional XBee Init and configuration code.
+//====================================================================
+#define CHECK_AND_CONFIG_XBEE
+#define DEFAULT_MY 0x101  // Swap My/DL on 2nd unit
+#define DEFAULT_DL 0x102
+#define DEFAULT_ID 0x3332
 
 //--------------------------------------------------------------------
 // Define which pins(sevo IDS go with which joint
@@ -263,7 +281,7 @@
 #define CNT_HEX_INITS 2
 #define MAX_BODY_Y  150
 #ifdef DEFINE_HEX_GLOBALS
-const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 134};
+const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 142};
 const byte g_abHexMaxBodyY[] PROGMEM = { 20, MAX_BODY_Y};
 #else
 extern const byte g_abHexIntXZ[] PROGMEM;

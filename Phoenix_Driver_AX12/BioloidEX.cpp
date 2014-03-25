@@ -125,13 +125,13 @@ void BioloidControllerEx::interpolateSetup(int time){
 }
 /* interpolate our pose, this should be called at about 30Hz. */
 #define WAIT_SLOP_FACTOR 10  
-void BioloidControllerEx::interpolateStep(boolean fWait){
-  if(interpolating == 0) return;
+int BioloidControllerEx::interpolateStep(boolean fWait){
+  if(interpolating == 0) return 0x7fff;
   int i;
   int complete = poseSize;
   if (!fWait) {
     if (millis() < (nextframe_ - WAIT_SLOP_FACTOR)) {
-      return;    // We still have some time to do something... 
+      return (millis() - nextframe_);    // We still have some time to do something... 
     }
   }
   while(millis() < nextframe_) ;
@@ -163,6 +163,7 @@ void BioloidControllerEx::interpolateStep(boolean fWait){
   }
   if(complete <= 0) interpolating = 0;
   writePose();      
+  return 0;  
 }
 
 /* get a servo value in the current pose */

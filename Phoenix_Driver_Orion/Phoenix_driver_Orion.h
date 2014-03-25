@@ -279,6 +279,13 @@ boolean MakeSureServosAreOn(void)
     return true;
 }
 
+//--------------------------------------------------------------------
+//Function that gets called from the main loop if the robot is not logically
+//     on.  Gives us a chance to play some...
+//--------------------------------------------------------------------
+void ServoDriver::IdleTime(void)
+{
+}
 
 #ifdef OPT_TERMINAL_MONITOR  
 extern void FindServoOffsets(void);
@@ -325,11 +332,11 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
 void AllLegServos1500() 
 {
 	for (byte LegIndex=0; LegIndex < 6; LegIndex++) {
-		Orion.SetPulse(pgm_read_byte(&cCoxaPin[LegIndex]), 0);
-		Orion.SetPulse(pgm_read_byte(&cFemurPin[LegIndex]), 0);
-		Orion.SetPulse(pgm_read_byte(&cTibiaPin[LegIndex]), 0);
+		Orion.setPulse(pgm_read_byte(&cCoxaPin[LegIndex]), 0);
+		Orion.setPulse(pgm_read_byte(&cFemurPin[LegIndex]), 0);
+		Orion.setPulse(pgm_read_byte(&cTibiaPin[LegIndex]), 0);
 #ifdef c4DOF
-		Orion.SetPulse(pgm_read_byte(&cTarsPin[LegIndex]), 0);
+		Orion.setPulse(pgm_read_byte(&cTarsPin[LegIndex]), 0);
 #endif
 	}
 	Orion.execute();
@@ -340,7 +347,7 @@ void AllLegServos1500()
 // WaitForNoServosMoving
 //==============================================================================
 void WaitForNoServosMoving(void) {
-	while (Orion.QueryMove())
+	while (Orion.queryMove())
 		delay(1);
 }		
 
@@ -348,7 +355,7 @@ void WaitForNoServosMoving(void) {
 // MoveServo
 //==============================================================================
 void MoveServo(byte iServo, short pulse, word time) {
-	Orion.SetPulse(iServo, pulse);
+	Orion.setPulse(iServo, pulse);
 	Orion.setTime(time);
 	Orion.execute();
 }
@@ -422,7 +429,7 @@ void FindServoOffsets()
 			}
 
             sOffset = asOffsets[iServo];
-			sOffsetOrion = Orion.QueryPOffset(iServo);
+			sOffsetOrion = Orion.queryPOffset(iServo);
 			
             Serial.print("Servo: ");
 			Serial.print(apszLegs[iLeg]);
@@ -499,19 +506,19 @@ void FindServoOffsets()
 
 		for (iLeg = 0; iLeg < 6; iLeg++) {
 			iServo = pgm_read_byte(&cCoxaPin[iLeg]);
-			Orion.SetPOffset(iServo, Orion.QueryPOffset(iServo) + asOffsets[iServo]);
+			Orion.setPOffset(iServo, Orion.queryPOffset(iServo) + asOffsets[iServo]);
 			iServo = pgm_read_byte(&cFemurPin[iLeg]);
-			Orion.SetPOffset(iServo, Orion.QueryPOffset(iServo) + asOffsets[iServo]);
+			Orion.setPOffset(iServo, Orion.queryPOffset(iServo) + asOffsets[iServo]);
 			iServo = pgm_read_byte(&cTibiaPin[iLeg]);
-			Orion.SetPOffset(iServo, Orion.QueryPOffset(iServo) + asOffsets[iServo]);
+			Orion.setPOffset(iServo, Orion.queryPOffset(iServo) + asOffsets[iServo]);
 #ifdef c4DOF
 			iServo = pgm_read_byte(&cTarsPin[iLeg]);
-			Orion.SetPOffset(iServo, Orion.QueryPOffset(iServo) + asOffsets[iServo]);
+			Orion.setPOffset(iServo, Orion.queryPOffset(iServo) + asOffsets[iServo]);
 #endif
 		}
 		
 		// And tell Orion to save these changes...
-		Orion.WriteRegisters();
+		Orion.writeRegisters();
     } else {
         void LoadServosConfig();
     }

@@ -417,6 +417,14 @@ void ServoDriver::FreeServos(void)
   g_InputController.AllowControllerInterrupts(true);    
 }
 
+//--------------------------------------------------------------------
+//Function that gets called from the main loop if the robot is not logically
+//     on.  Gives us a chance to play some...
+//--------------------------------------------------------------------
+void ServoDriver::IdleTime(void)
+{
+}
+
 #ifdef OPT_TERMINAL_MONITOR  
 extern void FindServoOffsets(void);
 extern void SSCForwarder(void);

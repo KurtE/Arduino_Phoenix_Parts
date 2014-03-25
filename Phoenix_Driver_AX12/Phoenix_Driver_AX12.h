@@ -4,13 +4,7 @@
 // Servo Driver - This version is setup to use AX-12 type servos using the
 // Arbotix AX12 and bioloid libraries (which may have been updated)
 //====================================================================
-#if ARDUINO>99
 #include <Arduino.h> // Arduino 1.0
-#else
-#include <Wprogram.h> // Arduino 0022
-#include <avr\pgmspace.h>
-#endif
-
 
 #ifdef c4DOF
 #define NUMSERVOSPERLEG 4
@@ -18,8 +12,21 @@
 #define NUMSERVOSPERLEG 3
 #endif
 
+#ifdef cTurretRotPin
+#define NUMSERVOS (NUMSERVOSPERLEG*CNT_LEGS +2)
+#else
 #define NUMSERVOS (NUMSERVOSPERLEG*CNT_LEGS)
+#endif
 
+#define cPwmMult      128
+#define cPwmDiv       375  
+#define cPFConst      512    // half of our 1024 range
+
+// Some defines for Voltage processing
+#define VOLTAGE_MIN_TIME_UNTIL_NEXT_INTERPOLATE 4000  // Min time in us Until we should do next interpolation, as to not interfer.
+#define VOLTAGE_MIN_TIME_BETWEEN_CALLS 150      // Max 6+ times per second
+#define VOLTAGE_MAX_TIME_BETWEEN_CALLS 1000    // call at least once per second...
+#define VOLTAGE_TIME_TO_ERROR          3000    // Error out if no valid item is returned in 3 seconds...
 #include <ax12.h>
 
 #define USE_BIOLOIDEX            // Use the Bioloid code to control the AX12 servos...
@@ -57,6 +64,9 @@ static const byte cPinTable[] PROGMEM = {
 #ifdef c4DOF
  ,cRRTarsPin,  cRFTarsPin,  cLRTarsPin,  cLFTarsPin
 #endif
+#ifdef cTurretRotPin
+  , cTurretRotPin, cTurretTiltPin
+#endif
 };
 #else
 static const byte cPinTable[] PROGMEM = {
@@ -66,13 +76,20 @@ static const byte cPinTable[] PROGMEM = {
 #ifdef c4DOF
     ,cRRTarsPin, cRMTarsPin, cRFTarsPin, cLRTarsPin, cLMTarsPin, cLFTarsPin
 #endif
+#ifdef cTurretRotPin
+  , cTurretRotPin, cTurretTiltPin
+#endif
 };
 #endif
 #define FIRSTCOXAPIN     0
 #define FIRSTFEMURPIN    (CNT_LEGS)
 #define FIRSTTIBIAPIN    (CNT_LEGS*2)
+#ifdef c4DOF
 #define FIRSTTARSPIN     (CNT_LEGS*3)
-
+#define FIRSTTURRETPIN   (CNT_LEGS*4)
+#else
+#define FIRSTTURRETPIN   (CNT_LEGS*3)
+#endif
 // Not sure yet if I will use the controller class or not, but...
 BioloidControllerEx bioloid = BioloidControllerEx(1000000);
 boolean g_fServosFree;    // Are the servos in a free state?
@@ -115,13 +132,16 @@ extern void MakeSureServosAreOn(void);
 extern void DoPyPose(byte *psz);
 extern void EEPROMReadData(word wStart, uint8_t *pv, byte cnt);
 extern void EEPROMWriteData(word wStart, uint8_t *pv, byte cnt);
+extern void TCSetServoID(byte *psz);
+extern void SetRegOnAllServos(uint8_t bReg, uint8_t bVal);
+
 
 //--------------------------------------------------------------------
 //Init
 //--------------------------------------------------------------------
 void ServoDriver::Init(void) {
   // First lets get the actual servo positions for all of our servos...
-  pinMode(0, OUTPUT);
+  //  pinMode(0, OUTPUT);
   g_fServosFree = true;
   bioloid.poseSize = NUMSERVOS;
   bioloid.readPose();
@@ -135,6 +155,18 @@ void ServoDriver::Init(void) {
 #ifdef OPT_GPPLAYER
   _fGPEnabled = true;    // assume we support it.
 #endif
+
+  // Currently have Turret pins not necessarily same as numerical order so
+  // Maybe should do for all pins and then set the positions by index instead
+  // of having it do a simple search on each pin...
+#ifdef cTurretRotPin
+  bioloid.setId(FIRSTTURRETPIN, cTurretRotPin);
+  bioloid.setId(FIRSTTURRETPIN+1, cTurretTiltPin);
+#endif
+
+  // Added - try to speed things up later if we do a query...
+  SetRegOnAllServos(AX_RETURN_DELAY_TIME, 0);  // tell servos to give us back their info as quick as they can...
+
 }
 
 
@@ -156,14 +188,14 @@ word ServoDriver::GetBatteryVoltage(void) {
   g_awVoltages[g_iVoltages] = analogRead(cVoltagePin);
   g_wVoltageSum += g_awVoltages[g_iVoltages];
 
+#ifdef CVREF
+  return ((long)((long)g_wVoltageSum*CVREF*(CVADR1+CVADR2))/(long)(8192*(long)CVADR2));  
+#else
   return ((long)((long)g_wVoltageSum*125*(CVADR1+CVADR2))/(long)(2048*(long)CVADR2));  
-
+#endif
 }
 
 #else
-#define VOLTAGE_MIN_TIME_BETWEEN_CALLS 250      // Max 4 times per second
-#define VOLTAGE_MAX_TIME_BETWEEN_CALLS 1000    // call at least once per second...
-#define VOLTAGE_TIME_TO_ERROR          3000    // Error out if no valid item is returned in 3 seconds...
 word g_wLastVoltage = 0xffff;    // save the last voltage we retrieved...
 byte g_bLegVoltage = 0;		// what leg did we last check?
 unsigned long g_ulTimeLastBatteryVoltage;
@@ -171,7 +203,7 @@ unsigned long g_ulTimeLastBatteryVoltage;
 word ServoDriver::GetBatteryVoltage(void) {
   // In this case, we have to ask a servo for it's current voltage level, which is a lot more overhead than simply doing
   // one AtoD operation.  So we will limit when we actually do this to maybe a few times per second.  
-  // Or longer if we are in the process of interpolating...
+  // Also if interpolating, the code will try to only call us when it thinks it won't interfer with timing of interpolation.
   unsigned long ulDeltaTime = millis() - g_ulTimeLastBatteryVoltage;
   if (g_wLastVoltage != 0xffff) {
       if ( (ulDeltaTime < VOLTAGE_MIN_TIME_BETWEEN_CALLS) 
@@ -417,47 +449,44 @@ void ServoDriver::BeginServoUpdate(void)    // Start the update
 //[OutputServoInfoForLeg] Do the output to the SSC-32 for the servos associated with
 //         the Leg number passed in.
 //------------------------------------------------------------------------------------------
-#define cPwmMult      128
-#define cPwmDiv       375  
-#define cPFConst      512    // half of our 1024 range
 #ifdef c4DOF
 void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1, short sTarsAngle1)
 #else
 void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short sFemurAngle1, short sTibiaAngle1)
 #endif    
 {        
-  word    wCoxaSSCV;        // Coxa value in SSC units
-  word    wFemurSSCV;        //
-  word    wTibiaSSCV;        //
+  word    wCoxaSDV;        // Coxa value in servo driver units
+  word    wFemurSDV;        //
+  word    wTibiaSDV;        //
 #ifdef c4DOF
-  word    wTarsSSCV;        //
+  word    wTarsSDV;        //
 #endif
   // The Main code now takes care of the inversion before calling.
-  wCoxaSSCV = (((long)(sCoxaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
-  wFemurSSCV = (((long)((long)(sFemurAngle1))* cPwmMult) / cPwmDiv +cPFConst);
-  wTibiaSSCV = (((long)(sTibiaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  wCoxaSDV = (((long)(sCoxaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  wFemurSDV = (((long)((long)(sFemurAngle1))* cPwmMult) / cPwmDiv +cPFConst);
+  wTibiaSDV = (((long)(sTibiaAngle1))* cPwmMult) / cPwmDiv +cPFConst;
 #ifdef c4DOF
-  wTarsSSCV = (((long)(sTarsAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  wTarsSDV = (((long)(sTarsAngle1))* cPwmMult) / cPwmDiv +cPFConst;
 #endif
   if (ServosEnabled) {
     if (g_fAXSpeedControl) {
 #ifdef USE_AX12_SPEED_CONTROL
       // Save away the new positions... 
-      g_awGoalAXPos[FIRSTCOXAPIN+LegIndex] = wCoxaSSCV;    // What order should we store these values?
-      g_awGoalAXPos[FIRSTFEMURPIN+LegIndex] = wFemurSSCV;    
-      g_awGoalAXPos[FIRSTTIBIAPIN+LegIndex] = wTibiaSSCV;    
+      g_awGoalAXPos[FIRSTCOXAPIN+LegIndex] = wCoxaSDV;    // What order should we store these values?
+      g_awGoalAXPos[FIRSTFEMURPIN+LegIndex] = wFemurSDV;    
+      g_awGoalAXPos[FIRSTTIBIAPIN+LegIndex] = wTibiaSDV;    
 #ifdef c4DOF
-      g_awGoalAXTarsPos[FIRSTTARSPIN+LegIndex] = wTarsSSCV;    
+      g_awGoalAXTarsPos[FIRSTTARSPIN+LegIndex] = wTarsSDV;    
 #endif
 #endif
     }
     else {    
-      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTCOXAPIN+LegIndex]), wCoxaSSCV);
-      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTFEMURPIN+LegIndex]), wFemurSSCV);
-      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+LegIndex]), wTibiaSSCV);
+      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTCOXAPIN+LegIndex]), wCoxaSDV);
+      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTFEMURPIN+LegIndex]), wFemurSDV);
+      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+LegIndex]), wTibiaSDV);
 #ifdef c4DOF
       if ((byte)pgm_read_byte(&cTarsLength[LegIndex]))   // We allow mix of 3 and 4 DOF legs...
-        bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTTARSPIN+LegIndex]), wTarsSSCV);
+        bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTTARSPIN+LegIndex]), wTarsSDV);
 #endif
     }
   }
@@ -467,16 +496,16 @@ void ServoDriver::OutputServoInfoForLeg(byte LegIndex, short sCoxaAngle1, short 
     DBGSerial.print("(");
     DBGSerial.print(sCoxaAngle1, DEC);
     DBGSerial.print("=");
-    DBGSerial.print(wCoxaSSCV, DEC);
+    DBGSerial.print(wCoxaSDV, DEC);
     DBGSerial.print("),(");
     DBGSerial.print(sFemurAngle1, DEC);
     DBGSerial.print("=");
-    DBGSerial.print(wFemurSSCV, DEC);
+    DBGSerial.print(wFemurSDV, DEC);
     DBGSerial.print("),(");
     DBGSerial.print("(");
     DBGSerial.print(sTibiaAngle1, DEC);
     DBGSerial.print("=");
-    DBGSerial.print(wTibiaSSCV, DEC);
+    DBGSerial.print(wTibiaSDV, DEC);
     DBGSerial.print(") :");
   }
 #endif
@@ -520,7 +549,48 @@ word CalculateAX12MoveSpeed(word wCurPos, word wGoalPos, word wTime)
 } 
 #endif
 
+//------------------------------------------------------------------------------------------
+//[OutputServoInfoForTurret] Set up the outputse servos associated with an optional turret
+//         the Leg number passed in.  FIRSTTURRETPIN
+//------------------------------------------------------------------------------------------
+#ifdef cTurretRotPin
+void ServoDriver::OutputServoInfoForTurret(short sRotateAngle1, short sTiltAngle1)
+{        
+  word    wRotateSDV;      
+  word    wTiltSDV;        //
 
+  // The Main code now takes care of the inversion before calling.
+  wRotateSDV = (((long)(sRotateAngle1))* cPwmMult) / cPwmDiv +cPFConst;
+  wTiltSDV = (((long)((long)(sTiltAngle1))* cPwmMult) / cPwmDiv +cPFConst);
+
+  if (ServosEnabled) {
+    if (g_fAXSpeedControl) {
+#ifdef USE_AX12_SPEED_CONTROL
+      // Save away the new positions... 
+      g_awGoalAXPos[FIRSTTURRETPIN] = wRotateSDV;    // What order should we store these values?
+      g_awGoalAXPos[FIRSTTURRETPIN+1] = wTiltSDV;    
+#endif
+    }
+    else {    
+      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTTURRETPIN]), wRotateSDV);
+      bioloid.setNextPose(pgm_read_byte(&cPinTable[FIRSTTURRETPIN+1]), wTiltSDV);
+    }
+  }
+#ifdef DEBUG_SERVOS
+  if (g_fDebugOutput) {
+    DBGSerial.print("(");
+    DBGSerial.print(sRotateAngle1, DEC);
+    DBGSerial.print("=");
+    DBGSerial.print(wRotateSDV, DEC);
+    DBGSerial.print("),(");
+    DBGSerial.print(sTiltAngle1, DEC);
+    DBGSerial.print("=");
+    DBGSerial.print(wTiltSDV, DEC);
+    DBGSerial.print(") :");
+  }
+#endif
+}
+#endif
 //--------------------------------------------------------------------
 //[CommitServoDriver Updates the positions of the servos - This outputs
 //         as much of the command as we can without committing it.  This
@@ -577,24 +647,75 @@ void ServoDriver::CommitServoDriver(word wMoveTime)
   g_InputController.AllowControllerInterrupts(true);    
 
 }
+//--------------------------------------------------------------------
+//[SetRegOnAllServos] Function that is called to set the state of one
+//  register in all of the servos, like Torque on...
+//--------------------------------------------------------------------
+void SetRegOnAllServos(uint8_t bReg, uint8_t bVal)
+{
+  // Need to first output the header for the Sync Write
+  int length = 4 + (NUMSERVOS * 2);   // 2 = id + val
+  int checksum = 254 + length + AX_SYNC_WRITE + 1 + bReg;
+  setTXall();
+  ax12write(0xFF);
+  ax12write(0xFF);
+  ax12write(0xFE);
+  ax12write(length);
+  ax12write(AX_SYNC_WRITE);
+  ax12write(bReg);
+  ax12write(1);    // number of bytes per servo (plus the ID...)
+  for (int i = 0; i < NUMSERVOS; i++) {
+    byte id = pgm_read_byte(&cPinTable[i]);
+    checksum += id + bVal;
+    ax12write(id);
+    ax12write(bVal);
+
+  }
+  ax12write(0xff - (checksum % 256));
+  setRX(0);
+}
 
 //--------------------------------------------------------------------
 //[FREE SERVOS] Frees all the servos
 //--------------------------------------------------------------------
 void ServoDriver::FreeServos(void)
 {
-  if (ServosEnabled) {
+  if (!g_fServosFree) {
     g_InputController.AllowControllerInterrupts(false);    // If on xbee on hserial tell hserial to not processess...
+    SetRegOnAllServos(AX_TORQUE_ENABLE, 0);  // do this as one statement...
+#if 0    
     for (byte i = 0; i < NUMSERVOS; i++) {
       Relax(pgm_read_byte(&cPinTable[i]));
     }
+#endif
     g_InputController.AllowControllerInterrupts(true);    
     g_fServosFree = true;
   }
 }
 
 //--------------------------------------------------------------------
-//[FREE SERVOS] Frees all the servos
+//Function that gets called from the main loop if the robot is not logically
+//     on.  Gives us a chance to play some...
+//--------------------------------------------------------------------
+static uint8_t g_iIdleServoNum  = (uint8_t)-1;
+static uint8_t g_iIdleLedState = 1;  // what state to we wish to set...
+void ServoDriver::IdleTime(void)
+{
+  // Each time we call this set servos LED on or off...
+  g_iIdleServoNum++;
+  if (g_iIdleServoNum >= NUMSERVOS) {
+    g_iIdleServoNum = 0;
+    g_iIdleLedState = 1 - g_iIdleLedState;
+  }
+  ax12SetRegister(pgm_read_byte(&cPinTable[g_iIdleServoNum]), AX_LED, g_iIdleLedState);
+  ax12ReadPacket(6);  // get the response...
+
+}
+
+//--------------------------------------------------------------------
+//[MakeSureServosAreOn] Function that is called to handle when you are
+//  transistioning from servos all off to being on.  May need to read
+//  in the current pose...
 //--------------------------------------------------------------------
 void MakeSureServosAreOn(void)
 {
@@ -613,9 +734,13 @@ void MakeSureServosAreOn(void)
       bioloid.readPose();
     }
 
+    SetRegOnAllServos(AX_TORQUE_ENABLE, 1);  // Use sync write to do it.
+
+#if 0
     for (byte i = 0; i < NUMSERVOS; i++) {
       TorqueOn(pgm_read_byte(&cPinTable[i]));
     }
+#endif    
     g_InputController.AllowControllerInterrupts(true);    
     g_fServosFree = false;
   }   
@@ -633,13 +758,13 @@ void  ServoDriver::BackgroundProcess(void)
   if (ServosEnabled) {
     DebugToggle(A3);
 
-    bioloid.interpolateStep(false);    // Do our background stuff...
+    int iTimeToNextInterpolate = bioloid.interpolateStep(false);    // Do our background stuff...
     
     // Hack if we are not interpolating, maybe try to get voltage.  This will acutally only do this
     // a few times per second.
 #ifdef cTurnOffVol          // only do if we a turn off voltage is defined
 #ifndef cVoltagePin         // and we are not doing AtoD type of conversion...
-    if (!bioloid.interpolating )
+    if (iTimeToNextInterpolate > VOLTAGE_MIN_TIME_UNTIL_NEXT_INTERPOLATE )      // At least 4ms until next interpolation.  See how this works...
         GetBatteryVoltage();
 #endif    
 #endif
@@ -654,10 +779,12 @@ void  ServoDriver::BackgroundProcess(void)
 //==============================================================================
 void ServoDriver::ShowTerminalCommandList(void) 
 {
+  DBGSerial.println(F("V - Voltage"));
   DBGSerial.println(F("M - Toggle Motors on or off"));
   DBGSerial.println(F("F<frame length> - FL in ms"));    // BUGBUG:: 
   DBGSerial.println(F("A - Toggle AX12 speed control"));
   DBGSerial.println(F("T - Test Servos"));
+  DBGSerial.println(F("S - Set id <frm> <to"));
 #ifdef OPT_PYPOSE
   DBGSerial.println(F("P<DL PC> - Pypose"));
 #endif
@@ -681,17 +808,29 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
 
     return true;  
   } 
+  if ((bLen == 1) && ((*psz == 'v') || (*psz == 'V'))) {
+    DBGSerial.print(F("Voltage: "));
+    DBGSerial.println(GetBatteryVoltage(), DEC);
+    DBGSerial.print("Raw Analog: ");
+    DBGSerial.println(analogRead(cVoltagePin));
+
+    DBGSerial.print(F("From Servo 2: "));
+    DBGSerial.println(ax12GetRegister (2, AX_PRESENT_VOLTAGE, 1), DEC);    
+  }
 
   if ((bLen == 1) && ((*psz == 't') || (*psz == 'T'))) {
     // Test to see if all servos are responding...
     for(int i=1;i<=NUMSERVOS;i++){
-      word w;
-      w = ax12GetRegister(i,AX_PRESENT_POSITION_L,2);
+      int iPos;
+      iPos = ax12GetRegister(i,AX_PRESENT_POSITION_L,2);
       DBGSerial.print(i,DEC);
       DBGSerial.print(F("="));
-      DBGSerial.println(w, DEC);
+      DBGSerial.println(iPos, DEC);
       delay(25);   
     }
+  }
+  if ((*psz == 't') || (*psz == 'T')) {
+    TCSetServoID(++psz);
   }
 
   if ((bLen == 1) && ((*psz == 'a') || (*psz == 'A'))) {
@@ -722,17 +861,36 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
     FindServoOffsets();
   }
 #endif
-#ifdef OPT_PYPOSE
-  else if ((*psz == 'p') || (*psz == 'P')) {
-    DoPyPose(++psz);
-  }
-#endif
    return false;
 
 }
+
+//==============================================================================
+// TCSetServoID - debug function to update servo numbers.
+//==============================================================================
+extern word GetCmdLineNum(byte **ppszCmdLine);
+void TCSetServoID(byte *psz)
+{
+  word wFrom = GetCmdLineNum(&psz);
+  word wTo = GetCmdLineNum(&psz);
+
+  if (wFrom  && wTo) {
+    // Both specified, so lets try
+    DBGSerial.print("Change Servo from: ");
+    DBGSerial.print(wFrom, DEC);
+    DBGSerial.print(" ");
+    DBGSerial.print(wTo, DEC);
+    ax12SetRegister(wFrom, AX_ID, wTo);
+    if (ax12ReadPacket(6)) { // get the response...    
+      DBGSerial.print(" Resp: ");
+      DBGSerial.println(ax_rx_buffer[4], DEC);
+    } 
+    else
+      DBGSerial.println(" failed");
+  }
+}
+
 #endif    
-
-
 
 //==============================================================================
 //	FindServoOffsets - Find the zero points for each of our servos... 
@@ -871,7 +1029,7 @@ void DoPyPose(byte *psz)
       if(mode == 0){         // start of new packet
         if(Serial.read() == 0xff){
           mode = 2;
-          digitalWrite(0,HIGH-digitalRead(0));
+//          digitalWrite(0,HIGH-digitalRead(0));
         }
         //}else if(mode == 1){   // another start byte
         //    if(Serial.read() == 0xff)
