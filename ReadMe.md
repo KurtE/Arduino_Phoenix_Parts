@@ -102,7 +102,7 @@ Some Notes about Capabilities and Options
 There are features and options that are part of the code base that should probably be documented.  While the below is
 not complete, I hope it might help out some.  Sorry that the information here is a bit rough.
 
-#define Options
+\#define Options
 --------------
 
 Many of the different Input drivers as well as the servo drivers have options that can be defined.  Many of the options
@@ -111,21 +111,23 @@ are more generic.  Here are a few of the ones that I picked out from the others.
 
 First there is simple defines for selecting something major like four degrees for freedom and Quad mode (versus the default
 of hexapod)
-#define c4DOF
-#define QUADMODE
+
+\#define c4DOF
+
+\#define QUADMODE
 
 Allow the actual program to do something at startup.  Example with Orion driver I may want to detect if a button is pressed
 and hang there in a loop as to allow me to update the firmware of the Orion.
-#define OPT_SKETCHSETUP // If defined will call   SketchSetup();
+\#define OPT_SKETCHSETUP // If defined will call   SketchSetup();
 
 Some Servo drivers needs the main code to call it whenever it can as to do some background work.  Example AX12 to do the
 default interpolation. 
-#define OPT_BACKGROUND_PROCESS
+\#define OPT_BACKGROUND_PROCESS
 
 The Original Phoenix code base has the ability to run General Purpose Sequences that were stored on the SSC-32 servo driver.  For some
 of the other servo drivers I have done code to emulate this.  On AX-12 I allow you to import Pypose sequences.  This type of code is
 enabled by:
-#define OPT_GPPLAYER
+\#define OPT_GPPLAYER
 
 For some robots, I am still experimenting with the ability to adjust the leg positions (angles between legs) as well as the distance of
 the leg from the center.  Currently only supported using the Commander.  
@@ -134,7 +136,7 @@ the leg from the center.  Currently only supported using the Commander.
 For those robots whose controller boards who have a Serial port that you can use to talk to something like the Arduino Serial Monitor, you
 can define DBGSerial, to the actual Serial port.  On other boards, example Arbotix, where Serial is used by the XBee and Serial1 is used for
 talking to the AX servos, you typically cannot define this.   
-#define DBGSerial
+\#define DBGSerial
 
 If DBGSerial is defined, then you can also enable other features.  In particular a simple Terminal monitor, that allows you to type in simple
 commands.  If defined, there are a few very basic commands that are part of the main code (Toggle Debug on and Off), and each of the Servo
@@ -142,12 +144,12 @@ drivers can add additional commands.  In addition, with this latest delta you ca
 Note: The terminal monitor is mainly only called when the Robot is logically Off.  With the Commander, this is when the commander is turned off.
 With PS2, the robot is toggled on and off by the Start button.
           
-#define OPT_TERMINAL_MONITOR  
-#define OPT_TERMINAL_MONITOR_IC  // Allow Input controller to define stuff as well
+\#define OPT_TERMINAL_MONITOR  
+\#define OPT_TERMINAL_MONITOR_IC  // Allow Input controller to define stuff as well
 
 Within the Terminal monitor there is also support to include or not include some of the larger commands.  Example some of the Servo drivers (SSC-32) has
 a command that allows you to adjust the zero position of the servos and then store that data away.
-#define OPT_FIND_SERVO_OFFSETS
+\#define OPT_FIND_SERVO_OFFSETS
 
 Likewise there is code in the SSC-32 driver to try to forward stuff that is received on the terminal Serial port to the SSC-32 and likewise data from the SSC-32
 back to the Terminal Serial port, in attempt to allow you to use programs on a PC to talk directly to the SSC-32.
@@ -155,17 +157,17 @@ back to the Terminal Serial port, in attempt to allow you to use programs on a P
 
 With some of the more recent builds, the gaits have been defined as a structure.  With this you now have the ability to have your specific robot 
 completely replace the set of gaits used or add gaits to the default list.  An example of this is defined in the Phantom Phoenix Quad example under Phoenix. 
-#define OVERWRITE_GAITS
-#define ADD_GAITS
+\#define OVERWRITE_GAITS
+\#define ADD_GAITS
 
 With the use of Lipo or LifePo4 types of batteries, it is good idea to try to shut off the robot before the battery is drained too far.  (100ths of volt)  
 When the power goes below this point, if possible it will shut off all of the servos. And if sound is enabled, it will make some noise.  You should still
 shut the system off as the processor will still be using up the battery.
-#define cTurnOffVol 1000
+\#define cTurnOffVol 1000
 
 If cTurnOffVol is defined you can also define a voltage that allows the robot to turn back on.  This was needed as sometimes you start a robot on USB, 
 before power switch is turned on.  So if you then turn on power it would be ok to again allow the robot to turn on.
-#define cTurnOnVol 1100
+#\define cTurnOnVol 1100
 
 With Some servo drivers like the AX12 driver, the servo driver code can get the voltage from the servos.  But if your processor board has the ability to get the 
 voltage, you can instead define which pin to do the analogRead from.
@@ -173,11 +175,11 @@ voltage, you can instead define which pin to do the analogRead from.
 
 Since by default the voltage to the IO pins cannot exceed the system voltage, often these pins are connected up through a resistor divider circuit (2 resistors).  
 Example Lynxmotion BotBoarduino has a 10K and 30K resistor.  So you need to define this somewhere.  Actually you just need the ratios
-#define CVADR1  40
-#define CVADR2  10
+\#define CVADR1  40
+\#define CVADR2  10
 
 Up till now all of the boards were 5V, but now with Teensy and the like some or now 3.3v so needed somewhere to define.  Defaults to 5V
-#define CVREF   500
+\#define CVREF   500
 
 Terminal Monitor
 ----------------
