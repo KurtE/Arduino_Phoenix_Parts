@@ -76,35 +76,35 @@
 
 //====================================================================
 //[SSC PIN NUMBERS]
-#define cRFCoxaPin      0   //Front Right leg Hip Horizontal
-#define cRFFemurPin     1   //Front Right leg Hip Vertical
-#define cRFTibiaPin     2   //Front Right leg Knee
-#define cRFTarsPin      3   // Tar
+#define cRRCoxaPin      0   //Rear Right leg Hip Horizontal
+#define cRRFemurPin     1   //Rear Right leg Hip Vertical
+#define cRRTibiaPin     2   //Rear Right leg Knee
+#define cRRTarsPin      3   // Tar
 
 #define cRMCoxaPin      4   //Middle Right leg Hip Horizontal
 #define cRMFemurPin     5   //Middle Right leg Hip Vertical
 #define cRMTibiaPin     6   //Middle Right leg Knee
 #define cRMTarsPin      7   // Tar
 
-#define cRRCoxaPin      8   //Rear Right leg Hip Horizontal
-#define cRRFemurPin     9   //Rear Right leg Hip Vertical
-#define cRRTibiaPin     10   //Rear Right leg Knee
-#define cRRTarsPin      11   // Tar
+#define cRFCoxaPin      8   //Front Right leg Hip Horizontal
+#define cRFFemurPin     9   //Front Right leg Hip Vertical
+#define cRFTibiaPin     10   //Front Right leg Knee
+#define cRFTarsPin      11   // Tar
 
-#define cLFCoxaPin      16   //Front Left leg Hip Horizontal
-#define cLFFemurPin     17   //Front Left leg Hip Vertical
-#define cLFTibiaPin     18   //Front Left leg Knee
-#define cLFTarsPin      19   // Tar
+#define cLRCoxaPin      16   //Rear Left leg Hip Horizontal
+#define cLRFemurPin     17   //Rear Left leg Hip Vertical
+#define cLRTibiaPin     18   //Rear Left leg Knee
+#define cLRTarsPin      19   // Tar
 
 #define cLMCoxaPin      20   //Middle Left leg Hip Horizontal
 #define cLMFemurPin     21   //Middle Left leg Hip Vertical
 #define cLMTibiaPin     22   //Middle Left leg Knee
 #define cLMTarsPin      23   // Tar
 
-#define cLRCoxaPin      24   //Rear Left leg Hip Horizontal
-#define cLRFemurPin     25   //Rear Left leg Hip Vertical
-#define cLRTibiaPin     26   //Rear Left leg Knee
-#define cLRTarsPin      27   // Tar
+#define cLFCoxaPin      24   //Front Left leg Hip Horizontal
+#define cLFFemurPin     25   //Front Left leg Hip Vertical
+#define cLFTibiaPin     26   //Front Left leg Knee
+#define cLFTarsPin      27   // Tar
 
 
 //--------------------------------------------------------------------
@@ -221,20 +221,6 @@
 #define CHexInitXZSin60  91        // sin(60) = .866
 #define CHexInitY	 25
 
-// Lets try some multi leg positions depending on height settings.
-#if 0 // Start first without...
-#define CNT_HEX_INITS 3
-#define MAX_BODY_Y  90
-#ifdef DEFINE_HEX_GLOBALS
-const byte g_abHexIntXZ[] PROGMEM = {
-  cHexInitXZ, 99, 86};
-const byte g_abHexMaxBodyY[] PROGMEM = { 
-  20, 50, MAX_BODY_Y};
-#else
-extern const byte g_abHexIntXZ[] PROGMEM;
-extern const byte g_abHexMaxBodyY[] PROGMEM;
-#endif
-#endif  // if 0
 #define cRRInitPosX     CHexInitXZCos60      //Start positions of the Right Rear leg
 #define cRRInitPosY     CHexInitY
 #define cRRInitPosZ     CHexInitXZSin60
@@ -258,13 +244,6 @@ extern const byte g_abHexMaxBodyY[] PROGMEM;
 #define cLFInitPosX     CHexInitXZCos60      //Start positions of the Left Front leg
 #define cLFInitPosY     CHexInitY
 #define cLFInitPosZ     -CHexInitXZSin60
-//--------------------------------------------------------------------
-//[Tars factors used in formula to calc Tarsus angle relative to the ground]
-#define cTarsConst	720	//4DOF ONLY
-#define cTarsMulti	2	//4DOF ONLY
-#define cTarsFactorA	70	//4DOF ONLY
-#define cTarsFactorB	60	//4DOF ONLY
-#define cTarsFactorC	50	//4DOF ONLY
 
 #endif CFG_HEX_H
 

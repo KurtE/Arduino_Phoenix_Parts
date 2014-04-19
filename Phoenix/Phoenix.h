@@ -89,11 +89,12 @@ extern boolean          g_fRobotUpsideDown;    // Is the robot upside down?
 extern void MSound(byte cNotes, ...);
 extern boolean CheckVoltage(void);
 
-word GetLegsXZLength(void);
-void AdjustLegPositions(word XZLength1);
-void AdjustLegPositionsToBodyHeight();
-void ResetLegInitAngles(void);
-void RotateLegInitAngles (int iDeltaAngle);
+extern word GetLegsXZLength(void);
+extern void AdjustLegPositions(word XZLength1);
+extern void AdjustLegPositionsToBodyHeight();
+extern void ResetLegInitAngles(void);
+extern void RotateLegInitAngles (int iDeltaAngle);
+extern long GetCmdLineNum(byte **ppszCmdLine);
 
 // debug handler...
 extern boolean g_fDBGHandleError;
@@ -229,10 +230,11 @@ typedef struct _InControlState {
 #endif
 
   //[Single Leg Control]
+#ifdef OPT_SINGLELEG
   byte			SelectedLeg;
   COORD3D       SLLeg;               // 
   boolean		fSLHold;		 	 //Single leg control mode
-
+#endif
 
   //[Balance]
   boolean       BalanceMode;
@@ -242,7 +244,7 @@ typedef struct _InControlState {
   word			SpeedControl;	//Adjustible Delay
   byte       ForceGaitStepCnt;          // new to allow us to force a step even when not moving
 
-#ifdef ADJUSTABLE_LEG_ANGLES
+#ifdef OPT_DYNAMIC_ADJUST_LEGS
   short         aCoxaInitAngle1[CNT_LEGS]; 
 #endif
 

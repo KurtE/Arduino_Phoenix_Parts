@@ -75,13 +75,15 @@
 #include <Wprogram.h> // Arduino 0022
 #endif
 //[CONSTANTS]
-#ifdef OPT_GPPLAYER
 enum {
-  WALKMODE=0, TRANSLATEMODE, ROTATEMODE, SINGLELEGMODE, GPPLAYERMODE, MODECNT};
-#else
-enum {
-  WALKMODE=0, TRANSLATEMODE, ROTATEMODE, SINGLELEGMODE, MODECNT};
+  WALKMODE=0, TRANSLATEMODE, ROTATEMODE, 
+#ifdef OPT_SINGLELEG      
+  SINGLELEGMODE, 
 #endif
+#ifdef OPT_GPPLAYER
+  GPPLAYERMODE, 
+#endif  
+  MODECNT};
 enum {
   NORM_NORM=0, NORM_LONG, HIGH_NORM, HIGH_LONG};
 
@@ -290,9 +292,10 @@ void CommanderInputController::ControlInput(void)
       else {
         MSound( 1, 50, 2000);  
       }
+#ifdef OPT_SINGLELEG      
       if (ControlMode != SINGLELEGMODE)
         g_InControlState.SelectedLeg=255;
-
+#endif
     }
 
     //[Common functions]
@@ -501,6 +504,7 @@ void CommanderInputController::ControlInput(void)
 #endif // OPT_GPPLAYER
 
     //[Single leg functions]
+#ifdef OPT_SINGLELEG      
     if (ControlMode == SINGLELEGMODE) {
       //Switch leg for single leg control
       if ((command.buttons & BUT_R1) && !(buttonsPrev & BUT_R1)) {
@@ -521,7 +525,7 @@ void CommanderInputController::ControlInput(void)
         g_InControlState.fSLHold = !g_InControlState.fSLHold;
       }
     }
-
+#endif
 
     //Calculate walking time delay
     g_InControlState.InputTimeDelay = 128 - max(max(abs(lx), abs(ly)), abs(command.rightH));
@@ -580,7 +584,9 @@ void CommanderTurnRobotOff(void)
   g_InControlState.TravelLength.y = 0;
   g_BodyYOffset = 0;
   g_BodyYShift = 0;
+#ifdef OPT_SINGLELEG      
   g_InControlState.SelectedLeg = 255;
+#endif
   g_InControlState.fRobotOn = 0;
 
 #ifdef cTurretRotPin

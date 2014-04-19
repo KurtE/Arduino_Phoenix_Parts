@@ -34,9 +34,9 @@
 #endif 
 
 // Define other optional compnents to be included or not...
-#define PHANTOMX_V2     // Some code may depend on it being a V2 PhantomX
-#define cFemurHornOffset1 -70
-#define cTibiaHornOffset1 380
+//#define PHANTOMX_V2     // Some code may depend on it being a V2 PhantomX
+#define cFemurHornOffset1 -35
+#define cTibiaHornOffset1 463
 #define cRRTibiaInv 0 
 #define cRMTibiaInv 0 
 #define cRFTibiaInv 0 
@@ -281,7 +281,7 @@
 #define CNT_HEX_INITS 2
 #define MAX_BODY_Y  150
 #ifdef DEFINE_HEX_GLOBALS
-const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 142};
+const byte g_abHexIntXZ[] PROGMEM = {cHexInitXZ, 144};
 const byte g_abHexMaxBodyY[] PROGMEM = { 20, MAX_BODY_Y};
 #else
 extern const byte g_abHexIntXZ[] PROGMEM;

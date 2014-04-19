@@ -27,7 +27,8 @@
 #define VOLTAGE_MIN_TIME_BETWEEN_CALLS 150      // Max 6+ times per second
 #define VOLTAGE_MAX_TIME_BETWEEN_CALLS 1000    // call at least once per second...
 #define VOLTAGE_TIME_TO_ERROR          3000    // Error out if no valid item is returned in 3 seconds...
-#include <ax12.h>
+
+//#include <ax12.h>
 
 #define USE_BIOLOIDEX            // Use the Bioloid code to control the AX12 servos...
 #define USE_AX12_SPEED_CONTROL   // Experiment to see if the speed control works well enough...
@@ -133,6 +134,7 @@ extern void DoPyPose(byte *psz);
 extern void EEPROMReadData(word wStart, uint8_t *pv, byte cnt);
 extern void EEPROMWriteData(word wStart, uint8_t *pv, byte cnt);
 extern void TCSetServoID(byte *psz);
+extern void TCTrackServos();
 extern void SetRegOnAllServos(uint8_t bReg, uint8_t bVal);
 
 
@@ -784,7 +786,8 @@ void ServoDriver::ShowTerminalCommandList(void)
   DBGSerial.println(F("F<frame length> - FL in ms"));    // BUGBUG:: 
   DBGSerial.println(F("A - Toggle AX12 speed control"));
   DBGSerial.println(F("T - Test Servos"));
-  DBGSerial.println(F("S - Set id <frm> <to"));
+  DBGSerial.println(F("I - Set Id <frm> <to"));
+  DBGSerial.println(F("S - Track Servos"));
 #ifdef OPT_PYPOSE
   DBGSerial.println(F("P<DL PC> - Pypose"));
 #endif
@@ -811,9 +814,10 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
   if ((bLen == 1) && ((*psz == 'v') || (*psz == 'V'))) {
     DBGSerial.print(F("Voltage: "));
     DBGSerial.println(GetBatteryVoltage(), DEC);
+#ifdef cVoltagePIN
     DBGSerial.print("Raw Analog: ");
     DBGSerial.println(analogRead(cVoltagePin));
-
+#endif
     DBGSerial.print(F("From Servo 2: "));
     DBGSerial.println(ax12GetRegister (2, AX_PRESENT_VOLTAGE, 1), DEC);    
   }
@@ -829,8 +833,11 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
       delay(25);   
     }
   }
-  if ((*psz == 't') || (*psz == 'T')) {
+  if ((*psz == 'i') || (*psz == 'I')) {
     TCSetServoID(++psz);
+  }
+  if ((*psz == 's') || (*psz == 'S')) {
+    TCTrackServos();
   }
 
   if ((bLen == 1) && ((*psz == 'a') || (*psz == 'A'))) {
@@ -868,7 +875,6 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
 //==============================================================================
 // TCSetServoID - debug function to update servo numbers.
 //==============================================================================
-extern word GetCmdLineNum(byte **ppszCmdLine);
 void TCSetServoID(byte *psz)
 {
   word wFrom = GetCmdLineNum(&psz);
@@ -889,6 +895,56 @@ void TCSetServoID(byte *psz)
       DBGSerial.println(" failed");
   }
 }
+
+//==============================================================================
+// TCTrackServos - Lets set a mode to track servos.  Can use to help figure out
+// proper initial positions and min/max values...
+//==============================================================================
+void TCTrackServos()
+{
+  // First read through all of the servos to get their position. 
+  uint16_t auPos[NUMSERVOS];
+  uint16_t  uPos;
+  int i;
+  boolean fChange;
+
+  // Clear out any pending input characters
+  while (DBGSerial.read() != -1)
+    ;
+
+  for(i=0;i<NUMSERVOS;i++){
+    auPos[i] = ax12GetRegister(pgm_read_byte(&cPinTable[i]),AX_PRESENT_POSITION_L,2);
+  }  
+
+  // Now loop until we get some input on the serial
+  while (!DBGSerial.available()) {
+    fChange = false;
+    for(int i=0; i<NUMSERVOS; i++){
+      uPos = ax12GetRegister(pgm_read_byte(&cPinTable[i]),AX_PRESENT_POSITION_L,2);
+      // Lets put in a littl delta or shows lots
+      if (abs(auPos[i] - uPos) > 2) {
+        auPos[i] = uPos;
+        if (fChange)
+          DBGSerial.print(", ");
+        else
+          fChange = true;  
+        DBGSerial.print(pgm_read_byte(&cPinTable[i]), DEC);
+        DBGSerial.print(": ");
+        DBGSerial.print(uPos, DEC);
+        // Convert back to angle. 
+        int iAng = (((int)uPos-cPFConst)*cPwmDiv)/cPwmMult;
+        DBGSerial.print("(");
+        DBGSerial.print(iAng, DEC);
+        DBGSerial.print(")");
+      }
+    }  
+    if (fChange)
+      DBGSerial.println();
+    delay(25);   
+  }
+
+}
+
 
 #endif    
 

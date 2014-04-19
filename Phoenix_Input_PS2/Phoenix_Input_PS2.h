@@ -36,6 +36,11 @@
 //- D-Pad leftdecrease speed with 50mS
 //- D-Pad rightincrease speed with 50mS
 //
+// Optional: L3 button down, Left stick can adjust leg positions...
+// or if OPT_SINGLELEG is not defined may try using Circle
+
+//
+//
 //[Walk Controls]
 //- selectSwitch gaits
 //- Left Stick(Walk mode 1) Walk/Strafe
@@ -154,6 +159,10 @@ void InputController::AllowControllerInterrupts(boolean fAllow)
 // This is The main code to input function to read inputs from the PS2 and then
 //process any commands.
 //==============================================================================
+#ifdef OPT_DYNAMIC_ADJUST_LEGS  
+boolean g_fDynamicLegXZLength = false;  // Has the user dynamically adjusted the Leg XZ init pos (width)
+#endif
+
 void InputController::ControlInput(void)
 {
   boolean fAdjustLegPositions = false;
@@ -179,10 +188,16 @@ void InputController::ControlInput(void)
 	}
 #endif
 #endif
+
+#ifdef OPT_DYNAMIC_ADJUST_LEGS  
+    boolean fAdjustLegPositions = false;
+    short sLegInitXZAdjust = 0;
+    short sLegInitAngleAdjust = 0;
+#endif
     // In an analog mode so should be OK...
     g_sPS2ErrorCnt = 0;    // clear out error count...
 
-    if (ps2x.ButtonPressed(PSB_START)) {// OK lets try "0" button for Start. 
+    if (ps2x.ButtonPressed(PSB_START)) {// OK lets press start button
       if (g_InControlState.fRobotOn) {
         PS2TurnRobotOff();
       } 
@@ -202,9 +217,11 @@ void InputController::ControlInput(void)
         if (ControlMode != TRANSLATEMODE )
           ControlMode = TRANSLATEMODE;
         else {
+#ifdef OPT_SINGLELEG
           if (g_InControlState.SelectedLeg==255) 
             ControlMode = WALKMODE;
           else
+#endif
             ControlMode = SINGLELEGMODE;
         }
       }
@@ -215,14 +232,17 @@ void InputController::ControlInput(void)
         if (ControlMode != ROTATEMODE)
           ControlMode = ROTATEMODE;
         else {
+#ifdef OPT_SINGLELEG
           if (g_InControlState.SelectedLeg == 255) 
             ControlMode = WALKMODE;
           else
+#endif
             ControlMode = SINGLELEGMODE;
         }
       }
 
       //Single leg mode fNO
+#ifdef OPT_SINGLELEG
       if (ps2x.ButtonPressed(PSB_CIRCLE)) {// O - Circle Button Test
         if (abs(g_InControlState.TravelLength.x)<cTravelDeadZone && abs(g_InControlState.TravelLength.z)<cTravelDeadZone 
           && abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone )   {
@@ -237,7 +257,7 @@ void InputController::ControlInput(void)
           }
         }
       }      
-
+#endif
 #ifdef OPT_GPPLAYER
       // GP Player Mode X
       if (ps2x.ButtonPressed(PSB_CROSS)) { // X - Cross Button Test
@@ -304,6 +324,23 @@ void InputController::ControlInput(void)
           MSound( 1, 50, 2000); 
         }
       }
+      
+      // We are optionally going to allow the user to modify the Initial Leg positions, when they
+      // press the L3 button.
+      byte lx = ps2x.Analog(PSS_LX);
+      byte ly = ps2x.Analog(PSS_LY);
+#ifdef OPT_DYNAMIC_ADJUST_LEGS  
+#ifdef OPT_SINGLELEG
+      if (ps2x.Button(PSB_L3)) {    // L3 pressed, use this to modify leg positions.
+#else
+      if (ps2x.Button(PSB_CIRCLE)) {// O - Circle Button Test 
+#endif      
+        sLegInitXZAdjust = ((int)lx-128)/10;        // play with this.
+        sLegInitAngleAdjust = ((int)ly-128)/8;
+        lx = 0;
+        ly = 0;
+      }
+#endif
 
       //[Walk functions]
       if (ControlMode == WALKMODE) {
@@ -350,8 +387,8 @@ void InputController::ControlInput(void)
           g_InControlState.TravelLength.z = (ps2x.Analog(PSS_RY)-128); //Right Stick Up/Down  
 
         else {
-          g_InControlState.TravelLength.x = -(ps2x.Analog(PSS_LX) - 128);
-          g_InControlState.TravelLength.z = (ps2x.Analog(PSS_LY) - 128);
+          g_InControlState.TravelLength.x = -(lx - 128);
+          g_InControlState.TravelLength.z = (ly - 128);
         }
 
         if (!DoubleTravelOn) {  //(Double travel length)
@@ -365,21 +402,22 @@ void InputController::ControlInput(void)
       //[Translate functions]
       g_BodyYShift = 0;
       if (ControlMode == TRANSLATEMODE) {
-        g_InControlState.BodyPos.x = (ps2x.Analog(PSS_LX) - 128)/2;
-        g_InControlState.BodyPos.z = -(ps2x.Analog(PSS_LY) - 128)/3;
+        g_InControlState.BodyPos.x = (lx - 128)/2;
+        g_InControlState.BodyPos.z = -(ly - 128)/3;
         g_InControlState.BodyRot1.y = (ps2x.Analog(PSS_RX) - 128)*2;
         g_BodyYShift = (-(ps2x.Analog(PSS_RY) - 128)/2);
       }
 
       //[Rotate functions]
       if (ControlMode == ROTATEMODE) {
-        g_InControlState.BodyRot1.x = (ps2x.Analog(PSS_LY) - 128);
+        g_InControlState.BodyRot1.x = (ly - 128);
         g_InControlState.BodyRot1.y = (ps2x.Analog(PSS_RX) - 128)*2;
-        g_InControlState.BodyRot1.z = (ps2x.Analog(PSS_LX) - 128);
+        g_InControlState.BodyRot1.z = (lx - 128);
         g_BodyYShift = (-(ps2x.Analog(PSS_RY) - 128)/2);
       }
 
       //[Single leg functions]
+#ifdef OPT_SINGLELEG
       if (ControlMode == SINGLELEGMODE) {
         //Switch leg for single leg control
         if (ps2x.ButtonPressed(PSB_SELECT)) { // Select Button Test
@@ -390,9 +428,9 @@ void InputController::ControlInput(void)
             g_InControlState.SelectedLeg=0;
         }
 
-        g_InControlState.SLLeg.x= (ps2x.Analog(PSS_LX) - 128)/2; //Left Stick Right/Left
+        g_InControlState.SLLeg.x= (lx - 128)/2; //Left Stick Right/Left
         g_InControlState.SLLeg.y= (ps2x.Analog(PSS_RY) - 128)/10; //Right Stick Up/Down
-        g_InControlState.SLLeg.z = (ps2x.Analog(PSS_LY) - 128)/2; //Left Stick Up/Down
+        g_InControlState.SLLeg.z = (ly - 128)/2; //Left Stick Up/Down
 
         // Hold single leg in place
         if (ps2x.ButtonPressed(PSB_R2)) { // R2 Button Test
@@ -400,7 +438,7 @@ void InputController::ControlInput(void)
           g_InControlState.fSLHold = !g_InControlState.fSLHold;
         }
       }
-
+#endif
 #ifdef OPT_GPPLAYER
       //[GPPlayer functions]
       if (ControlMode == GPPLAYERMODE) {
@@ -451,11 +489,30 @@ void InputController::ControlInput(void)
 #endif // OPT_GPPLAYER
 
       //Calculate walking time delay
-      g_InControlState.InputTimeDelay = 128 - max(max(abs(ps2x.Analog(PSS_LX) - 128), abs(ps2x.Analog(PSS_LY) - 128)), abs(ps2x.Analog(PSS_RX) - 128));
+      g_InControlState.InputTimeDelay = 128 - max(max(abs(lx - 128), abs(ly - 128)), abs(ps2x.Analog(PSS_RX) - 128));
     }
 
     //Calculate g_InControlState.BodyPos.y
     g_InControlState.BodyPos.y = min(max(g_BodyYOffset + g_BodyYShift,  0), MAX_BODY_Y);
+    
+#ifdef OPT_DYNAMIC_ADJUST_LEGS  
+    if (sLegInitXZAdjust || sLegInitAngleAdjust) {
+      // User asked for manual leg adjustment - only do when we have finished any previous adjustment
+
+      if (!g_InControlState.ForceGaitStepCnt) {
+        if (sLegInitXZAdjust)
+          g_fDynamicLegXZLength = true;
+
+        sLegInitXZAdjust += GetLegsXZLength();  // Add on current length to our adjustment...
+        // Handle maybe change angles...
+        if (sLegInitAngleAdjust) 
+            RotateLegInitAngles(sLegInitAngleAdjust);
+        // Give system time to process previous calls
+        AdjustLegPositions(sLegInitXZAdjust);
+      }
+    }    
+#endif
+    
     if (fAdjustLegPositions)
       AdjustLegPositionsToBodyHeight();    // Put main workings into main program file
   } 
@@ -486,7 +543,9 @@ void PS2TurnRobotOff(void)
   g_InControlState.TravelLength.y = 0;
   g_BodyYOffset = 0;
   g_BodyYShift = 0;
+#ifdef OPT_SINGLELEG
   g_InControlState.SelectedLeg = 255;
+#endif  
   g_InControlState.fRobotOn = 0;
   AdjustLegPositionsToBodyHeight();    // Put main workings into main program file
 }

@@ -44,7 +44,7 @@
 //     Quad extra: COGAngleStart, COGAngleStep, CogRadius, COGCCW
 //                      { RR, <RM> RF, LR, <LM>, LF}
 #define ADD_GAITS
-#define PYPOSE_GAIT_SPEED 98
+#define PYPOSE_GAIT_SPEED 60
 PHOENIXGAIT APG_EXTRA[] = { 
   {PYPOSE_GAIT_SPEED, 8, 2, 1, 2, 6, 1, 0, 0,0, true, {7, 1, 3, 5}},   // ripple
   {PYPOSE_GAIT_SPEED, 4, 2, 1, 2, 2, 1, 0, 0, 0, true,{3, 1, 1, 3}},  // Amble
