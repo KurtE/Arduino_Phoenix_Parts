@@ -64,6 +64,8 @@
 
 */
 
+#if defined(__AVR__)
+
 #include <avr/interrupt.h>
 #include <Arduino.h> 
 
@@ -486,3 +488,308 @@ void cServoGroupMove::wait(uint32_t ulSGMMask)
 		ulSGMMask >>= 1;
 	}
 }
+
+
+#elif defined(__arm__) && (defined(__MK20DX128__) || defined(__MK20DX256__))
+// ******************************************************************************
+// Teensy 3.0 implementation, using Programmable Delay Block
+// ******************************************************************************
+
+#include <Arduino.h> 
+#include "ServoEx.h"
+
+#define PDB_CONFIG (PDB_SC_TRGSEL(15) | PDB_SC_PDBEN | PDB_SC_PDBIE \
+	| PDB_SC_CONT | PDB_SC_PRESCALER(2) | PDB_SC_MULT(0))
+#define PDB_PRESCALE 4
+#define usToTicks(us)    ((us) * (F_BUS / 1000) / PDB_PRESCALE / 1000)
+#define ticksToUs(ticks) ((ticks) * PDB_PRESCALE * 1000 / (F_BUS / 1000))
+
+// Group move variables
+uint8_t GroupMoveActiveCnt = 0;								// Do we have a group move active at this time?
+
+static uint16_t servo_active_mask = 0;
+static uint16_t servo_allocated_mask = 0;
+static uint8_t servo_pin[MAX_SERVOS];
+static uint16_t servo_ticks[MAX_SERVOS];
+
+// Added support for group move...
+static uint16_t servo_ticksNew[MAX_SERVOS];		// New end point tick count
+static int16_t servo_ticksDelta[MAX_SERVOS];	// How much to change per servo cycle
+static uint16_t servo_ticksPending[MAX_SERVOS]; // New pending value that commit will use.	
+
+cServoGroupMove ServoGroupMove;
+
+
+ServoEx::ServoEx()
+{
+	uint16_t mask;
+
+	servoIndex = 0;
+	for (mask=1; mask < (1<<MAX_SERVOS); mask <<= 1) {
+		if (!(servo_allocated_mask & mask)) {
+			servo_allocated_mask |= mask;
+			servo_active_mask &= ~mask;
+			return;
+		}
+		servoIndex++;
+	}
+	servoIndex = INVALID_SERVO;
+}
+
+uint8_t ServoEx::attach(int pin)
+{
+	return attach(pin, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH);
+}
+
+uint8_t ServoEx::attach(int pin, int minimum, int maximum)
+{
+	if (servoIndex < MAX_SERVOS) {
+		pinMode(pin, OUTPUT);
+		servo_pin[servoIndex] = pin;
+		servo_ticks[servoIndex] = usToTicks(DEFAULT_PULSE_WIDTH);
+		servo_active_mask |= (1<<servoIndex);
+		min_ticks = usToTicks(minimum);
+		max_ticks = usToTicks(maximum);
+		if (!(SIM_SCGC6 & SIM_SCGC6_PDB)) {
+			SIM_SCGC6 |= SIM_SCGC6_PDB; // TODO: use bitband for atomic bitset
+			PDB0_MOD = 0xFFFF;
+			PDB0_CNT = 0;
+			PDB0_IDLY = 0;
+			PDB0_SC = PDB_CONFIG;
+			// TODO: maybe this should be a higher priority than most
+			// other interrupts (init all to some default?)
+			PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG;
+		}
+		NVIC_ENABLE_IRQ(IRQ_PDB);
+	}
+	return servoIndex;
+}
+
+void ServoEx::detach()  
+{
+	if (servoIndex >= MAX_SERVOS) return;
+	servo_active_mask &= ~(1<<servoIndex);
+	servo_allocated_mask &= ~(1<<servoIndex);
+	if (servo_active_mask == 0) {
+		NVIC_DISABLE_IRQ(IRQ_PDB);
+	}
+}
+
+void ServoEx::write(int value)
+{
+	if (servoIndex >= MAX_SERVOS) return;
+	if (value >= MIN_PULSE_WIDTH) {
+		writeMicroseconds(value);
+		return;
+	} else if (value > 180) {
+		value = 180;
+	} else if (value < 0) {
+		value = 0;
+	}
+	if (servoIndex >= MAX_SERVOS) return;
+	
+	if (GroupMoveActiveCnt)
+        servo_ticksPending[servoIndex] = map(value, 0, 180, min_ticks, max_ticks);  
+    else
+        servo_ticks[servoIndex] = map(value, 0, 180, min_ticks, max_ticks);
+}
+
+void ServoEx::writeMicroseconds(int value)
+{
+	value = usToTicks(value);
+	if (value < min_ticks) {
+		value = min_ticks;
+	} else if (value > max_ticks) {
+		value = max_ticks;
+	}
+	if (servoIndex >= MAX_SERVOS) return;
+    
+  	// Changes to handle multiple servo group move
+	if (GroupMoveActiveCnt)
+        servo_ticksPending[servoIndex] = value;  
+    else
+        servo_ticks[servoIndex] = value;
+}
+
+int ServoEx::read() // return the value as degrees
+{
+	if (servoIndex >= MAX_SERVOS) return 0;
+	return map(servo_ticks[servoIndex], min_ticks, max_ticks, 0, 180);     
+}
+
+int ServoEx::readMicroseconds()
+{
+	if (servoIndex >= MAX_SERVOS) return 0;
+	return ticksToUs(servo_ticks[servoIndex]);
+}
+
+bool ServoEx::attached()
+{
+	if (servoIndex >= MAX_SERVOS) return 0;
+	return servo_active_mask & (1<<servoIndex);
+}
+
+// Added for group move
+bool ServoEx::moving()
+{
+	if (servoIndex >= MAX_SERVOS) return 0;
+    return (servo_ticksDelta[servoIndex] != 0) ;
+}
+
+void ServoEx::move(int value, unsigned int MoveTime)
+{
+	// For now just do shorthand of start, write and commit
+	ServoGroupMove.start();
+	write(value);
+	ServoGroupMove.commit(MoveTime);
+}
+
+extern "C" void pdb_isr(void)
+{
+	static int8_t channel=0, channel_high=MAX_SERVOS;
+	static uint32_t tick_accum=0;
+	uint32_t ticks;
+	int32_t wait_ticks;
+
+	// first, if any channel was left high from the previous
+	// run, now is the time to shut it off
+	if (servo_active_mask & (1<<channel_high)) {
+		digitalWrite(servo_pin[channel_high], LOW);
+
+        // See if we are in a timed move, if so update the move for the next time through...
+	    if (servo_ticksDelta[channel_high] > 0) {
+	        servo_ticks[channel_high] +=servo_ticksDelta[channel_high];
+		    if (servo_ticks[channel_high] >= servo_ticksNew[channel_high]) {
+			    servo_ticks[channel_high] = servo_ticksNew[channel_high];
+			    servo_ticksDelta[channel_high] = 0;
+		    }
+	    }
+	    else if (servo_ticksDelta[channel_high] < 0) {
+	        servo_ticks[channel_high] +=servo_ticksDelta[channel_high];
+		    if (servo_ticks[channel_high] <= servo_ticksNew[channel_high]) {
+			    servo_ticks[channel_high] = servo_ticksNew[channel_high];
+			    servo_ticksDelta[channel_high] = 0;
+		    }
+	    }
+
+		channel_high = MAX_SERVOS;
+	}
+	// search for the next channel to turn on
+	while (channel < MAX_SERVOS) {
+		if (servo_active_mask & (1<<channel)) {
+			digitalWrite(servo_pin[channel], HIGH);
+			channel_high = channel;
+			ticks = servo_ticks[channel];
+			tick_accum += ticks;
+			PDB0_IDLY += ticks;
+			PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+			channel++;
+			return;
+		}
+		channel++;
+	}
+	// when all channels have output, wait for the
+	// minimum refresh interval
+	wait_ticks = usToTicks(REFRESH_INTERVAL) - tick_accum;
+	if (wait_ticks < usToTicks(100)) wait_ticks = usToTicks(100);
+	else if (wait_ticks > 60000) wait_ticks = 60000;
+	tick_accum += wait_ticks;
+	PDB0_IDLY += wait_ticks;
+	PDB0_SC = PDB_CONFIG | PDB_SC_LDOK;
+	// if this wait is enough to satisfy the refresh
+	// interval, next time begin again at channel zero 
+	if (tick_accum >= usToTicks(REFRESH_INTERVAL)) {
+		tick_accum = 0;
+		channel = 0;
+	}
+}
+
+//====================================================================================
+// Class cServoGroupMove - Common to both AVR and Arm
+//====================================================================================
+
+void cServoGroupMove::start(void) 
+{
+	// 
+	if (!GroupMoveActiveCnt) {
+		uint8_t i;
+		for (i=0; i < MAX_SERVOS; i++)
+			servo_ticksPending[i] = (uint16_t)-1;	// special value to say not part of group move.
+	}
+	GroupMoveActiveCnt++;	// Increment counter to say we are in a group move.
+}
+
+void cServoGroupMove::commit(unsigned int wMoveTime)
+{
+	uint8_t 
+	i;
+	if (GroupMoveActiveCnt) {
+		if ((--GroupMoveActiveCnt) == 0) {
+			// Ok we are back to zero.  Need to convert the move time to number of cycles...
+			// Lets convert the move time into number of Servo Intervals
+			// NOte Refresh_interval is in microseconds and our time was in milliseconds
+			wMoveTime = (wMoveTime + (REFRESH_INTERVAL/2000))/(REFRESH_INTERVAL/1000);
+			if (wMoveTime) {
+				// At least one clock tick so now 
+                for (i=0; i < MAX_SERVOS; i++) {
+					if ((servo_ticksPending[i] != (uint16_t)-1) && (servo_active_mask & (1 >> i)) && 
+							(servo_ticks[i] != servo_ticksPending[i])) {
+						noInterrupts();
+						servo_ticksNew[i] = servo_ticksPending[i];  
+						servo_ticksDelta[i] = (int)((int)servo_ticksNew[i] - (int)servo_ticks[i])/ (int)wMoveTime;
+						if (!servo_ticksDelta[i]) 
+							servo_ticksDelta[i] = (servo_ticksNew[i] > servo_ticks[i])? 1 : -1;
+						interrupts();   
+					}
+				}
+			}
+			else {
+				// less than one clock tick lets just set all of the active ones to their new values...
+				for (i=0; i < MAX_SERVOS; i++) {
+					if ((servo_ticksPending[i] != (unsigned int)-1) && (servo_active_mask & (1 >> i))) {
+						noInterrupts();
+						servo_ticks[i] = servo_ticksPending[i];  
+						interrupts();   
+					}
+					servo_ticksDelta[i] = 0;	// make sure they are all cleared out.
+				}
+			}
+		}	
+	}	
+}
+
+void cServoGroupMove::abort()
+{
+	GroupMoveActiveCnt = 0;	// clear out the counts...
+}
+
+
+uint32_t cServoGroupMove::moving(void)
+{
+	uint8_t i;
+	uint32_t	ulRet = 0;
+	uint32_t	ulMask = 1;
+	for (i=0; i < MAX_SERVOS; i++) {
+		if ((servo_active_mask & ulMask) && (servo_ticksDelta[i] != 0)) 
+			ulRet |= ulMask;
+		ulMask <<= 1;	// setup for next servo...
+	}
+	return ulRet;
+}
+
+void cServoGroupMove::wait(uint32_t ulSGMMask)
+{
+	uint8_t i;
+    ulSGMMask &= servo_active_mask;     // quickly remove any servos listed that are not actually active.
+	for (i=0; (i < MAX_SERVOS) && ulSGMMask; i++) {
+		if (ulSGMMask & 0x1) { 
+			// We are interested in this servo...
+			while (servo_ticksDelta[i] != 0) 
+				delay(1);
+		}
+		ulSGMMask >>= 1;
+	}
+}
+
+#endif
+
