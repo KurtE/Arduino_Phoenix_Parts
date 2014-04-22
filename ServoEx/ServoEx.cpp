@@ -732,7 +732,7 @@ void cServoGroupMove::commit(unsigned int wMoveTime)
 			if (wMoveTime) {
 				// At least one clock tick so now 
                 for (i=0; i < MAX_SERVOS; i++) {
-					if ((servo_ticksPending[i] != (uint16_t)-1) && (servo_active_mask & (1 >> i)) && 
+					if ((servo_ticksPending[i] != (uint16_t)-1) && (servo_active_mask & (1 << i)) && 
 							(servo_ticks[i] != servo_ticksPending[i])) {
 						noInterrupts();
 						servo_ticksNew[i] = servo_ticksPending[i];  
@@ -746,7 +746,7 @@ void cServoGroupMove::commit(unsigned int wMoveTime)
 			else {
 				// less than one clock tick lets just set all of the active ones to their new values...
 				for (i=0; i < MAX_SERVOS; i++) {
-					if ((servo_ticksPending[i] != (unsigned int)-1) && (servo_active_mask & (1 >> i))) {
+					if ((servo_ticksPending[i] != (unsigned int)-1) && (servo_active_mask & (1 << i))) {
 						noInterrupts();
 						servo_ticks[i] = servo_ticksPending[i];  
 						interrupts();   

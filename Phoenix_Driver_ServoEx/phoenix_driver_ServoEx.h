@@ -8,6 +8,17 @@
 
 #include <ServoEx.h>
 
+// Define macros to use to remove differences for EEPROM and I2CEEPROM
+#ifdef USE_I2CEEROM
+#define EEPROMBEGIN() I2CEEPROM.begin
+#define EEPROMREAD(loc) I2CEEPROM.readFrom(loc)
+#define EEPROMWRITE(loc, val) I2CEEPROM.writeTo(loc, val)
+#else
+#define EEPROMBEGIN() 
+#define EEPROMREAD(x) EEPROM.read(x)
+#define EEPROMWRITE(loc, val) EEPROM.write(loc, val)
+#endif
+
 //Servo Pin numbers - May be SSC-32 or actual pins on main controller, depending on configuration.
 #ifdef QUADMODE
 const byte cCoxaPin[] PROGMEM = {
@@ -56,14 +67,14 @@ void LoadServosConfig(void) {
   byte bChkSum = 0;      //
   int i;
 
-  if (I2CEEPROM.readFrom(0) == CNT_LEGS*NUMSERVOSPERLEG) {
+  if (EEPROMREAD(0) == CNT_LEGS*NUMSERVOSPERLEG) {
     for (i=0; i < sizeof(g_asLegOffsets); i++) {
-          *pb = I2CEEPROM.readFrom(i+2);
+          *pb = EEPROMREAD(i+2);
           bChkSum += *pb++;
     }
      
     // now see if the checksum matches.
-    if (bChkSum == I2CEEPROM.readFrom(1))
+    if (bChkSum == EEPROMREAD(1))
       return;    // we have valid data
   }
   
@@ -86,11 +97,10 @@ void ServoDriver::Init(void) {
   _fGPEnabled = false;  // starts off assuming that it is not enabled...
   _fGPActive = false;
 #endif
-  I2CEEPROM.begin();
+  EEPROMBEGIN();
   
   // Need to read in the servo offsets... but for now just init all to 0
-  for (bServoIndex = 0; bServoIndex < CNT_LEGS*NUMSERVOSPERLEG; bServoIndex++)
-      g_asLegOffsets[bServoIndex] = 0;
+  LoadServosConfig();
     
 #ifdef cVoltagePin  
   // If we have a voltage pin, we are doing averaging of voltages over
@@ -341,7 +351,7 @@ void FindServoOffsets()
 #ifdef QUADMODE
     static char *apszLegs[] = {"RR","RM","RF", "LR", "LM", "LF"};  // Leg Order
 #else	
-    static char *apszLegs[] = {"RR","RM","RF", "LR", "LM", "LF"};  // Leg Order
+    static char *apszLegs[] = {"RR","RF", "LR", "LF"};  // Leg Order
 #endif	
     static char *apszLJoints[] = {" Coxa", " Femur", " Tibia", " tArs"}; // which joint on the leg...
     int data;
@@ -450,15 +460,15 @@ void FindServoOffsets()
 	// 
         byte *pb = (byte*)&g_asLegOffsets;
         byte bChkSum = 0;  //
-        I2CEEPROM.writeTo(0, CNT_LEGS*NUMSERVOSPERLEG);    // Ok lets write out our count of servos
+        EEPROMWRITE(0, CNT_LEGS*NUMSERVOSPERLEG);    // Ok lets write out our count of servos
 	for (sSN=0; sSN < sizeof(g_asLegOffsets); sSN++) {
-            I2CEEPROM.writeTo(sSN+2, *pb);
+            EEPROMWRITE(sSN+2, *pb);
             bChkSum += *pb++;
 	}
         // Then write out to address 1 our calculated checksum
-        I2CEEPROM.writeTo(1, bChkSum);
+        EEPROMWRITE(1, bChkSum);
     } else {
-        void LoadServosConfig();
+        LoadServosConfig();
     }
     
 	g_ServoDriver.FreeServos();
