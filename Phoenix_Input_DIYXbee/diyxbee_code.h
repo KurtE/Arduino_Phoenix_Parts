@@ -2,14 +2,12 @@
  * - DIY remote control XBee support file
  *
  ****************************************************************************/
-#if ARDUINO>99
-#include <Arduino.h> // Arduino 1.0
-#else
-#include <Wprogram.h> // Arduino 0022
-#endif
+#ifdef DBGSerial
 #define DEBUG
+//#define DEBUG_XBEE
 //#define DEBUG_OUT
 //#define DEBUG_VERBOSE
+#endif
 
 #ifdef USEXBEE
 #include "diyxbee.h"
@@ -46,92 +44,72 @@ static boolean s_fDisplayedTimeout = false;
 XBeeDebugSerial XBDSerial;
 #endif
 
+#ifndef CXBEETIMEOUTRECVMS
+#define CXBEETIMEOUTRECVMS 250
+#endif
 //=============================================================================
 // Xbee stuff
 //=============================================================================
 void InitXBee(void)
 {
-  uint8_t abT[10];  
-  XBeeSerial.begin(XBEE_BAUD);    // BAUD rate is defined in Hex_CFG.h file...
+#ifdef OPT_DEBUGPINS
+#ifndef DEBUG_PINS_FIRST
+#define DEBUG_PINS_FIRST 2
+#endif
+  pinMode(DEBUG_PINS_FIRST, OUTPUT);
+  pinMode(DEBUG_PINS_FIRST+1, OUTPUT);
+  pinMode(DEBUG_PINS_FIRST+2, OUTPUT);
+  pinMode(DEBUG_PINS_FIRST+3, OUTPUT);
+  pinMode(DEBUG_PINS_FIRST+4, OUTPUT);
+#endif
+
+  char abT[10];  
+#define XBEE_POWERUP_HACK  
+  #ifdef XBEE_POWERUP_HACK  
+  DEBUGTOGGLE(DEBUG_PINS_FIRST);
+  XBeeSerial.begin(9600);   
+  XBeeSerial.println("ATCN");
+  XBeeSerial.flush();
+  XBeeSerial.end();
+  delay(100);
+#endif
+XBeeSerial.begin(XBEE_BAUD);    // BAUD rate is defined in Hex_CFG.h file...
   // Ok lets set the XBEE into API mode...
 
 
+  DEBUGTOGGLE(DEBUG_PINS_FIRST);
   delay(1000);
   XBeeSerial.write("+++");
   XBeeSerial.flush();
 
   // Lets try to get an OK 
-  if (ReadFromXBee(abT, sizeof(abT), 100, 13) < 2) {
+  XBeeSerial.setTimeout(100);
+  if (XBeeSerial.readBytesUntil(13, abT, sizeof(abT)) < 2) {
     // probably failed, maybe we have not set everything up yet...
     delay(2000);
     ClearXBeeInputBuffer();      
     XBeeSerial.print("+++");
     XBeeSerial.flush();
-    ReadFromXBee(abT, sizeof(abT), 2000, 13);  // Wait for it to respond... should probably look at what was returned...
+    XBeeSerial.setTimeout(2000);
+
+    XBeeSerial.readBytesUntil(13, abT, sizeof(abT));
     XBeeSerial.println("ATGT 3");
   }
 
+  DEBUGTOGGLE(DEBUG_PINS_FIRST);
   delay(20);
   XBeeSerial.write("ATAP 1\rATCN\r");
+  delay(100);
   ClearXBeeInputBuffer();      
 
   // for Xbee with no flow control, maybe nothing to do here yet...
-  g_diystate.fTransReadyRecvd = false;
   g_diystate.fPacketValid = false; 
-  g_diystate.fSendOnlyNewMode = false; // make sure it is init...
+  g_diystate.fDataPacketsReceived = false;
   g_diystate.bPacketNum = 0;
-  g_diystate.bTransDataVersion = 0;    // assume old transmitter...
   g_diystate.wDBGDL= 0xffff;          // Debug 
 
-//  pinMode(0, OUTPUT);
-
-}
-
-
-//=============================================================================
-// byte ReadFromXBee - Read in a buffer of bytes.  We will pass in a timeout
-//            value that if we dont receive a character in that amount of time 
-//            something is wrong.  
-//=============================================================================
-// Quick and dirty helper function to read so many bytes in from the SSC with a timeout and an end of character marker...
-uint8_t ReadFromXBee(uint8_t *pb, uint8_t cb, ulong wTimeout, uint16_t wEOL)
-{
-  int ich;
-  uint8_t* pbIn = pb;
-  unsigned long ulTimeLastChar = micros();
-
-  while (cb) {
-    while ((ich = XBeeSerial.read()) == -1) {
-      // check for timeout
-      if ((uint16_t)(micros()-ulTimeLastChar) > wTimeout) {
-#ifdef DEBUG_VERBOSE                
-        if (g_fDebugOutput) 
-          DBGSerial.println("");
-#endif                
-        return (uint8_t)(pb-pbIn);
-      }
-      // Call off to the background process if any...
-      DoBackgroundProcess();
     }
-#ifdef DEBUG_VERBOSE                
-    if (g_fDebugOutput) {
-      DBGSerial.print(ich, HEX);
-      DBGSerial.print(" ");
-    }
-#endif
-    *pb++ = (uint8_t)ich;
-    cb--;
 
-    if ((uint16_t)ich == wEOL)
-      break;    // we matched so get out of here.
-    ulTimeLastChar = micros();    // update to say we received something
-  }
-#ifdef DEBUG_VERBOSE                
-  if (g_fDebugOutput)
-    DBGSerial.println("");
-#endif
-  return (uint8_t)(pb-pbIn);
-}
 
 
 //==============================================================================
@@ -203,20 +181,6 @@ void SendXBeePacket(uint16_t wDL, uint8_t bPHType, uint8_t cbExtra, uint8_t *pbE
 
 }
 
-//==============================================================================
-// [SendXbeeNewDataOnlyPacket] - Simple send packets to tell host if new only
-// mode
-//==============================================================================
-void SendXbeeNewDataOnlyPacket(boolean fNewOnly)
-{
-  if (fNewOnly)
-    SendXBeePacket(g_diystate.wAPIDL, XBEE_RECV_REQ_NEW,  0, 0); 
-  else
-    SendXBeePacket(g_diystate.wAPIDL, XBEE_RECV_REQ_NEW_OFF,  0, 0); 
-
-  g_diystate.fSendOnlyNewMode = fNewOnly;
-}
-
 
 //==============================================================================
 // [XBeeOutputVal] - Simple wrapper function to pass a word value back to
@@ -228,6 +192,12 @@ void XBeeOutputVal(uint16_t w)
   ab[0] = w >> 8;  // First byte is MSB
   ab[1] = w & 0xff;  // 2nd byte is LSB
   SendXBeePacket(g_diystate.wAPIDL, XBEE_RECV_DISP_VAL, sizeof(ab), (uint8_t*)ab);
+#ifdef DBGSerial
+  DBGSerial.print("XBee Display Val: ");
+  DBGSerial.print(w, DEC);
+  DBGSerial.print(" to: ");
+  DBGSerial.println(g_diystate.wAPIDL, HEX);  
+#endif  
 }
 
 //==============================================================================
@@ -276,10 +246,10 @@ void XBeePlaySounds(uint8_t cNotes, ...)
 //        - pass in timeout if zero will return if no data...
 //        
 //==============================================================================
-uint8_t APIRecvPacket(ulong Timeout)
+byte APIRecvPacket(ulong Timeout)
 {
   uint8_t cbRead;
-  uint8_t abT[3];
+  char abT[3];
   uint8_t bChksum;
   int i;
 
@@ -290,9 +260,12 @@ uint8_t APIRecvPacket(ulong Timeout)
   {
     if (!XBeeSerial.available())
       return 0;        // nothing waiting for us...
-    Timeout = 10000;    // .1 second?
+    Timeout = 100;    // .1 second?
 
   }
+
+  XBeeSerial.setTimeout(Timeout);
+  DEBUGTOGGLE(DEBUG_PINS_FIRST+3);
 
   // Now lets try to read in the data from the xbee...
   // first read in the delimter and packet length
@@ -300,21 +273,31 @@ uint8_t APIRecvPacket(ulong Timeout)
   // is not the proper delimiter...
 
   do {    
-    cbRead = ReadFromXBee(abT, 1, Timeout, 0xffff);
+    cbRead = XBeeSerial.readBytes(abT, 1);
     if (cbRead == 0)
       return 0;
   } 
   while (abT[0] != 0x7e);
 
-  cbRead = ReadFromXBee(abT, 2, Timeout, 0xffff);
+  cbRead = XBeeSerial.readBytes(abT, 2);
   if (cbRead != 2)
     return 0;                // did not read in full header or the header was not correct.
 
   wPacketLen = (abT[0] << 8) + abT[1];
 
-  // Now lets try to read in the packet
-  cbRead = ReadFromXBee(g_diystate.bAPIPacket, wPacketLen+1, Timeout, 0xffff);
+  if (wPacketLen >= sizeof(g_diystate.bAPIPacket)) {
+#ifdef DBGSerial      
+    DBGSerial.print("Packet Length error: ");
+    DBGSerial.println(wPacketLen, DEC);
+#endif        
+    ClearXBeeInputBuffer();  // maybe clear everything else out.
+    return 0;  // Packet bigger than expected maybe bytes lost...
+  }
 
+  // Now lets try to read in the packet
+  cbRead = XBeeSerial.readBytes((char*)g_diystate.bAPIPacket, wPacketLen+1);
+  if (cbRead != wPacketLen+1)
+    return 0;       // did not read in full packet.
 
   // Now lets verify the checksum.
   bChksum = 0;
@@ -322,9 +305,18 @@ uint8_t APIRecvPacket(ulong Timeout)
     bChksum = bChksum + g_diystate.bAPIPacket[i];             // Add that byte to the buffer...
 
 
-  if (g_diystate.bAPIPacket[wPacketLen] != (0xff - bChksum))
+  if (g_diystate.bAPIPacket[wPacketLen] != (0xff - bChksum)) {
+#ifdef DBGSerial      
+    DBGSerial.print("Packet Checksum error: ");
+    DBGSerial.print(wPacketLen, DEC);
+    DBGSerial.print(" ");
+    DBGSerial.print(g_diystate.bAPIPacket[wPacketLen], HEX);
+    DBGSerial.print("!=");
+    DBGSerial.println(0xff - bChksum, HEX);
+#endif        
     return 0;                // checksum was off
-
+  }
+  DEBUGTOGGLE(DEBUG_PINS_FIRST+4);
   return wPacketLen;    // return the packet length as the caller may need to know this...
 }
 
@@ -432,7 +424,7 @@ uint16_t GetXBeeHVal (char c1, char c2)
   for (;;)
   {
 
-    if ((wPacketLen = APIRecvPacket(10000))==0)
+    if ((wPacketLen = APIRecvPacket(10))==0)
       break;
 #ifdef DEBUG_VERBOSE                
     if (g_fDebugOutput) {
@@ -478,7 +470,7 @@ void ClearXBeeInputBuffer(void)
   g_fDebugOutput = false;
 #endif    
   //    XBeeSerial.flush();    // clear out anything that was queued up...        
-  while (ReadFromXBee(b, 1, 5000, 0xffff))
+  while (XBeeSerial.read() != -1)
     ;    // just loop as long as we receive something...
 #ifdef DEBUG
   g_fDebugOutput = fBefore;
@@ -557,24 +549,23 @@ boolean ReceiveXBeePacket(PDIYPACKET pdiyp)
   boolean _fNewPacketAvail = false;
 
   g_diystate.fPacketValid = false;
-  g_diystate.fPacketTimeOut = false;
-  g_diystate.fPacketForced = false;
+  g_diystate.fNewPacket = false;      // Did we receive a new packet?
 
   //    We will first see if we have a packet header waiting for us.
   //  BUGBUG:: Question should I loop after I process a package and only get out of the
   //             loop when I have no more data, or only process one possible message?
   //            Maybe depends on message?
+  DEBUGTOGGLE(DEBUG_PINS_FIRST+1);
   for (;;)
   {
     if (!XBeeSerial.available())
       break;        // no input available, break from this loop
 
     // The XBEE has sent us some data so try to get a packet header
-    cbRead = APIRecvPacket(10000);        // Lets read in a complete packet.
+    cbRead = APIRecvPacket(10);        // Lets read in a complete packet.
     if (!cbRead)
       break;                            // Again nothing read?
 
-//    digitalWrite(0, !digitalRead(0));
 #ifdef DEBUG
     s_fDisplayedTimeout = false;        // say that we got something so we can display empty again...
 #endif
@@ -582,13 +573,27 @@ boolean ReceiveXBeePacket(PDIYPACKET pdiyp)
       bDataOffset = 5;                // Received packet with 16 bit addressing
     else if (g_diystate.bAPIPacket[0] == 0x80)
       bDataOffset = 11;                // Received packet with 64 bit addressing
-    else if (g_diystate.bAPIPacket[0] == 0x89)
-      continue;                        // API set return value, ignore and try again
+    else if (g_diystate.bAPIPacket[0] == 0x89) {
+      if (g_diystate.bAPIPacket[2] != g_diystate.bTxStatusLast) {
+        g_diystate.bTxStatusLast = g_diystate.bAPIPacket[2];
+#ifdef DEBUG
+        DBGSerial.print("CTDB TStat: ");
+        DBGSerial.println(g_diystate.bAPIPacket[2], HEX);
+#endif
+      }
+      continue;
+    }
     else
       break;                            // Invalid packet lets bail from this loop.
 
     // Change CB into the number of extra bytes...
     cbRead -= (bDataOffset + 1);        // Ph is only 1 byte long now... 
+
+#ifdef DEBUG_XBEE
+    if (g_fDebugOutput) {
+        DebugMemoryDump(&g_diystate.bAPIPacket[bDataOffset + 0], 0, cbRead);
+    }
+#endif
 
     //-----------------------------------------------------------------------------
     // [XBEE_TRANS_DATA]
@@ -603,7 +608,15 @@ boolean ReceiveXBeePacket(PDIYPACKET pdiyp)
         memcpy(&pdiyp->ab[2], &g_diystate.bAPIPacket[bDataOffset + 3], g_diystate.cbPacketSize);
 
         // process first as higher number of these come in...
-        goto _SetToValidDataAndReturn;  // Hate gotos...
+        g_diystate.fPacketValid = true;    // data is valid
+        g_diystate.fNewPacket = true;      // Did we receive a new packet?
+        g_diystate.fDataPacketsReceived = true;
+        // BUGBUG:: Assuming 16 bit addressing
+        g_diystate.wAPIDL = (uint16_t)(g_diystate.bAPIPacket[1] << 8) + g_diystate.bAPIPacket[2];
+        g_diystate.ulLastPacket = millis();
+        DEBUGTOGGLE(DEBUG_PINS_FIRST+2);
+
+        return true;    //          // get out quick!
       } 
       else {
 #ifdef DEBUG
@@ -614,94 +627,7 @@ boolean ReceiveXBeePacket(PDIYPACKET pdiyp)
 #endif            
       }
     }
-    //-----------------------------------------------------------------------------
-    // [XBEE_TRANS_CHANGED_DATA] - We have a packet that is a delta from our current data
-    //			so we need to walk through this data and update the appropriate bytes in
-    //			the packet
-    //-----------------------------------------------------------------------------
-    else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_TRANS_CHANGED_DATA) {
-      if ((cbRead > 2) && (cbRead  < sizeof(DIYPACKET))) {
-        uint16_t wChangeMask = (g_diystate.bAPIPacket[bDataOffset + 1] << 8) + g_diystate.bAPIPacket[bDataOffset + 2]; // need to check byte order
-        uint8_t idiyp = 0;
-        bDataOffset += 3;  // update to point to first data byte...
-        while (wChangeMask) {
-          if (wChangeMask & 1)
-            pdiyp->ab[idiyp] = g_diystate.bAPIPacket[bDataOffset++];
 
-          wChangeMask >>= 1;    // shift it on down
-          idiyp++;
-        }
-#ifdef DEBUG_VERBOSE                
-        if (g_fDebugOutput) {
-          DBGSerial.print(pdiyp->s.wButtons, HEX);
-          for (int i=2; i< sizeof(DIYPACKET); i++) {
-            DBGSerial.print(" ");
-            DBGSerial.print(pdiyp->ab[i], HEX);
-          }
-          DBGSerial.println("");
-        }
-#endif                
-
-        goto _SetToValidDataAndReturn;  // Hate gotos...
-      }
-    }          			
-    //-----------------------------------------------------------------------------
-    // [XBEE_TRANS_NOTHIN_CHANGED] - Answer came back from remote telling us that
-    //		nothing was changed since the last packet data we received...
-    //-----------------------------------------------------------------------------
-    else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_TRANS_NOTHIN_CHANGED) {
-
-_SetToValidDataAndReturn:
-      g_diystate.fPacketValid = true;    // data is valid
-      g_diystate.fPacketForced = g_diystate.fReqDataForced;    // Was the last request forced???
-      g_diystate.fReqDataForced = 0;                // clear that state now
-      g_diystate.ulLastPacket = millis();
-      return true;    //          // get out quick!
-    } 
-
-    //-----------------------------------------------------------------------------
-    // [XBEE_TRANS_READY]
-    //-----------------------------------------------------------------------------
-    else if ((g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_TRANS_READY) && (cbRead == 2)) {
-      wNewDL = (g_diystate.bAPIPacket[bDataOffset + 1] << 8) + g_diystate.bAPIPacket[bDataOffset + 2];    // take care of warning, probably not needed
-      g_diystate.fTransReadyRecvd = true;        // OK we have received a packet saying transmitter is ready.    
-      SetXBeeDL(wNewDL);
-
-
-      g_diystate.ulLastPacket = millis();
-      g_diystate.fReqDataPacketSent = 0;                            // make sure we don't think we have any outstanding requests
-      _fNewPacketAvail = true;                                    // and try to get the first packet of data
-#ifdef DEBUG
-      if (g_fDebugOutput) {
-        DBGSerial.print("XBee_Trans_READY: ");
-        DBGSerial.println(wNewDL, HEX); 
-      }
-#endif //DEBUG
-    } 
-    //-----------------------------------------------------------------------------
-    // [XBEE_TRANS_NOTREADY]
-    //-----------------------------------------------------------------------------
-    else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_TRANS_NOTREADY) {
-      g_diystate.fTransReadyRecvd = 0;            // Ok not valid anymore...
-#ifdef DEBUG
-      if (g_fDebugOutput) {
-        DBGSerial.println("XBee_Trans_NOTREADY");
-      }
-#endif //DEBUG
-    } 
-
-    //-----------------------------------------------------------------------------
-    // [XBEE_TRANS_DATA_VERSION]
-    //-----------------------------------------------------------------------------
-    else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_TRANS_DATA_VERSION) {
-      g_diystate.bTransDataVersion = g_diystate.bAPIPacket[bDataOffset + 1];  // 1 byte version
-    }
-    //-----------------------------------------------------------------------------
-    // [XBEE_TRANS_NEW]
-    //-----------------------------------------------------------------------------
-    else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_TRANS_NEW) {
-      _fNewPacketAvail = true;
-    }    
     //-----------------------------------------------------------------------------
     // [XBEE_DEBUG_ATTACH]
     //-----------------------------------------------------------------------------
@@ -728,8 +654,6 @@ _SetToValidDataAndReturn:
     // [XBEE_DEBUG_STRING]
     //-----------------------------------------------------------------------------
     else if (g_diystate.bAPIPacket[bDataOffset + 0] == XBEE_DEBUG_STRING) {
-      pinMode(0, OUTPUT);
-//      digitalWrite(0, !digitalRead(0));
       XBDSerial.SetInputText(&g_diystate.bAPIPacket[bDataOffset + 1], cbRead); // need to check byte order
       // Ok lets take this and append it onto our debug input text buffer...
     }    
@@ -750,16 +674,17 @@ _SetToValidDataAndReturn:
   }
 
   //-----------------------------------------------------------------------------
-  // Exited above loop now See if we need to request data from the other side
+  // Exited above loop now See if we we are in some form of timeout condition.
+  // We should receive a new data message about 30 times per second.  If we
+  // have gone for a reasonably long time without receiving a message, assume
+  // transmitter went away!
   //-----------------------------------------------------------------------------
   // Only send when we know the transmitter is ready.  Also if we are in the New data only mode don't ask for data unless we have been 
   //    old there
   // is new data. We relax this a little and be sure to ask for data every so often as to make sure the remote is still working...
   // 
-  if (g_diystate.fTransReadyRecvd) {
+  if (g_diystate.fDataPacketsReceived) {
     ulCurrentTime = millis();
-
-    // Time in MS since last packet
     ulTimeDiffMS = ulCurrentTime - g_diystate.ulLastPacket;
 
     // See if we exceeded a global timeout.  If so let caller know so they can stop themself if necessary...
@@ -773,34 +698,9 @@ _SetToValidDataAndReturn:
       }                
 #endif //DEBUG
       g_diystate.fPacketValid = 0;
-      g_diystate.fPacketForced = true;
       return false;
     }
 
-    // see if we have an outstanding request out and if it timed out...
-    if (g_diystate.fReqDataPacketSent) {
-      if ((ulCurrentTime-g_diystate.ulLastRequest) > CXBEEPACKETTIMEOUTMS) {
-        // packet request timed out, force a new attempt.
-        _fNewPacketAvail = true;        // make sure it requests a new one    
-        g_diystate.fReqDataPacketSent = false;     // make sure we send a new one...
-      }
-    }
-
-    // Next see if it has been too long since we received a packet.  Ask to make sure they are there...
-    if (!_fNewPacketAvail && (ulTimeDiffMS > CXBEEFORCEREQMS)) {
-      _fNewPacketAvail = true;
-      g_diystate.fReqDataForced = true;        // remember that this request was forced!
-    }
-
-    if (!g_diystate.fSendOnlyNewMode || (g_diystate.fSendOnlyNewMode && _fNewPacketAvail)) {
-      // Now send out a prompt request to the transmitter:
-
-      if (!g_diystate.fReqDataPacketSent) {
-        SendXBeePacket(g_diystate.wAPIDL, g_diystate.bTransDataVersion? XBEE_RECV_REQ_DATA2 : XBEE_RECV_REQ_DATA, 0, 0);        // Request data Prompt (CmdType, ChkSum, Packet Number, CB extra data)
-        g_diystate.fReqDataPacketSent = true;             // yes we have already sent one.
-        g_diystate.ulLastRequest = ulCurrentTime;         // remember when we sent this...
-      }
-    }
     g_diystate.fPacketValid = _fPacketValidPrev;    // Say the data is in the same state as the previous call...
   }
 
@@ -837,7 +737,6 @@ size_t XBeeDebugSerial::write(uint8_t b) {
         _abOut[_cbOut] = 0;  // Make sure it is null terminated...
         SendXBeePacket(g_diystate.wDBGDL, XBEE_RECV_DISP_STR, _cbOut, (uint8_t*)_abOut);
         _cbOut = 0;
-//        digitalWrite(0, !digitalRead(0));
       } 
       else {
         _abOut[_cbOut++] = b;
@@ -885,9 +784,9 @@ void XBeeDebugSerial::SetInputText(uint8_t *pb, uint8_t cb) {
 }
 
 #endif //XBEE_DEBUG_OUTPUT
+#endif //USE_XBEE ?? Should we remove?
 
 
-#endif
 
 
 
