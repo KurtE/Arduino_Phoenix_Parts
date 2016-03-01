@@ -6,23 +6,16 @@ This is a Work In Progress!  There are no warrantees or Guarantees of any type t
 But I hope it is.
 
 This set of directories are my latest attempt of breaking up the Phoenix code base for the Arduino, 
-into libraries that you can use to build different builds for different Quads (and hopefully Hexapods as well)
+into libraries that you can use to build different builds for many different hexapods as well as a few quads
 
+Quad SUPPORT
+============
 
-Quad SUPPORT WIP
-================
+WARNING: This branch now has some and maybe even some support for Octopods.  
 
-WARNING: This branch is a real WIP to try to add some Quad support.  I also try to make sure that I don't break Hexapod
-support, but again no guarantees.
-
-So at times things that are checked in here may not work. Likewise I am in the process of trying to support other 
-platforms like the Arduino Due, so some changes could cause things not to compile.
-
-
-Note: This branch includes functionality of the changes made by Jeroen (Xan) for the code up on the Lynxmotion 
+Note: This includes functionality of the changes made by Jeroen (Xan) for the code up on the Lynxmotion 
 gethub Quadcode... However I changed the implementation such that you can choose which servos need to be reversed in the 
 hex config file, also not specific to quads. This change required updates to all of the servo Driver files
-
 
 General
 =======

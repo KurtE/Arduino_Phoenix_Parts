@@ -28,10 +28,9 @@
 #define VOLTAGE_MAX_TIME_BETWEEN_CALLS 1000    // call at least once per second...
 #define VOLTAGE_TIME_TO_ERROR          3000    // Error out if no valid item is returned in 3 seconds...
 
-//#include <ax12.h>
 
 #define USE_BIOLOIDEX            // Use the Bioloid code to control the AX12 servos...
-#define USE_AX12_SPEED_CONTROL   // Experiment to see if the speed control works well enough...
+//#define USE_AX12_SPEED_CONTROL   // Experiment to see if the speed control works well enough...
 boolean g_fAXSpeedControl;      // flag to know which way we are doing output...
 #include "BioloidEx.h"
 
@@ -179,12 +178,12 @@ void ServoDriver::Init(void) {
 //--------------------------------------------------------------------
 
 #ifdef cVoltagePin  
-word  g_awVoltages[8]={
+uint16_t  g_awVoltages[8]={
   0,0,0,0,0,0,0,0};
-word  g_wVoltageSum = 0;
+uint16_t  g_wVoltageSum = 0;
 byte  g_iVoltages = 0;
 
-word ServoDriver::GetBatteryVoltage(void) {
+uint16_t ServoDriver::GetBatteryVoltage(void) {
   g_iVoltages = (++g_iVoltages)&0x7;  // setup index to our array...
   g_wVoltageSum -= g_awVoltages[g_iVoltages];
   g_awVoltages[g_iVoltages] = analogRead(cVoltagePin);
@@ -198,11 +197,11 @@ word ServoDriver::GetBatteryVoltage(void) {
 }
 
 #else
-word g_wLastVoltage = 0xffff;    // save the last voltage we retrieved...
+uint16_t g_wLastVoltage = 0xffff;    // save the last voltage we retrieved...
 byte g_bLegVoltage = 0;		// what leg did we last check?
 unsigned long g_ulTimeLastBatteryVoltage;
 
-word ServoDriver::GetBatteryVoltage(void) {
+uint16_t ServoDriver::GetBatteryVoltage(void) {
   // In this case, we have to ask a servo for it's current voltage level, which is a lot more overhead than simply doing
   // one AtoD operation.  So we will limit when we actually do this to maybe a few times per second.  
   // Also if interpolating, the code will try to only call us when it thinks it won't interfer with timing of interpolation.
@@ -214,7 +213,7 @@ word ServoDriver::GetBatteryVoltage(void) {
   }
 
   // Lets cycle through the Tibia servos asking for voltages as they may be the ones doing the most work...
-  register word wVoltage = ax12GetRegister (pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+g_bLegVoltage]), AX_PRESENT_VOLTAGE, 1);
+  register uint16_t wVoltage = ax12GetRegister (pgm_read_byte(&cPinTable[FIRSTTIBIAPIN+g_bLegVoltage]), AX_PRESENT_VOLTAGE, 1);
   if (++g_bLegVoltage >= CNT_LEGS)
 	g_bLegVoltage = 0;
   if (wVoltage != 0xffff) {

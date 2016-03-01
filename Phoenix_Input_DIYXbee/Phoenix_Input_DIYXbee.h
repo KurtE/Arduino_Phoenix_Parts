@@ -1,4 +1,4 @@
-#define DEBUGTOGGLE(pin) digitalWrite(pin, !digitalRead(pin))
+
 //=============================================================================
 //Project Lynxmotion Phoenix
 //Description: Phoenix, control file.
@@ -157,7 +157,7 @@ void DIYXBeeController::Init(void)
   delay(20);
   ClearXBeeInputBuffer();
 
-#if 0 //def DBGSerial    
+#ifdef DBGSerial    
   uint16_t wMy = GetXBeeMY();
   DBGSerial.print("XBee My: ");
   DBGSerial.println(wMy, HEX);
@@ -202,7 +202,7 @@ void DIYXBeeController::ControlInput(void)
     while (g_diystate.fNewPacket) {
         if (!ReceiveXBeePacket(&g_diyp)) {
            for (int i=0; i<10; i++) {
-                DEBUGTOGGLE(2);
+                DEBUGTOGGLE(DEBUG_PINS_FIRST);
                 delayMicroseconds(5);
             }
             MSound(1, 50, 2500);
@@ -225,8 +225,9 @@ void DIYXBeeController::ControlInput(void)
         g_InControlState.TravelLength.y = 0;
         g_BodyYOffset = 0;
         g_BodyYSift = 0;
+#ifdef OPT_SINGLELEG      
         g_InControlState.SelectedLeg = 255;
-
+#endif
         g_InControlState.fRobotOn = 0;
       } 
       else  {
@@ -256,6 +257,7 @@ void DIYXBeeController::ControlInput(void)
         XBeeOutputStringF(F("Body Rotate"));
       }
 
+#ifdef OPT_SINGLELEG      
       if ((g_diyp.s.wButtons & (1<<0xD)) && ((wButtonsPrev & (1<<0xd)) == 0)) { // D button test - Single Leg
         MSound(1, 50, 2000);
         if (g_InControlState.SelectedLeg==255) // none
@@ -265,6 +267,7 @@ void DIYXBeeController::ControlInput(void)
         bXBeeControlMode=SINGLELEGMODE;        
         XBeeOutputStringF (F("Single Leg"));
       }
+#endif
       if ((g_diyp.s.wButtons & (1<<0xe)) && ((wButtonsPrev & (1<<0xe)) == 0)) { // E button test - Balance mode
         if (!g_InControlState.BalanceMode) {
           g_InControlState.BalanceMode = 1;
@@ -294,9 +297,10 @@ void DIYXBeeController::ControlInput(void)
           g_InControlState.TravelLength.x = 0;
           g_InControlState.TravelLength.z = 0;
           g_InControlState.TravelLength.y = 0;
-
+#ifdef OPT_SINGLELEG      
           g_InControlState.SelectedLeg=255;  //none
           g_InControlState.fSLHold=0;
+#endif
 
           bXBeeControlMode = GPPLAYERMODE;
         } 
@@ -330,11 +334,16 @@ void DIYXBeeController::ControlInput(void)
             MSound( 1, 50, 2000);   //Sound P9, [50\4000]
             g_InControlState.GaitType = iNumButton-1;
 #ifdef DEBUG
-            DBGPrintf("New Gate: %d\n\r", g_InControlState.GaitType);
+#ifdef DBGSerial            
+            DBGSerial.print("New Gate: ");
+            DBGSerial.println(g_InControlState.GaitType, DEC);
+#endif
 #endif
             GaitSelect();
 #ifdef DEBUG
-            DBGPrintf("Output Gate Named\n\r");
+#ifdef DBGSerial
+            DBGSerial.println("Output Gate Named");
+#endif
 #endif
 
 #ifdef DISPLAY_GAIT_NAMES
@@ -349,6 +358,7 @@ void DIYXBeeController::ControlInput(void)
       }
 
       //Switch single leg
+#ifdef OPT_SINGLELEG      
       if (bXBeeControlMode==SINGLELEGMODE) {
         if (iNumButton>=1 && iNumButton<=CNT_LEGS) {
           MSound( 1, 50, 2000);   //Sound P9, [50\4000]
@@ -366,6 +376,7 @@ void DIYXBeeController::ControlInput(void)
         g_InControlState.SelectedLeg=255; // none
         g_InControlState.fSLHold=0;
       }
+#endif
 
       //Body Height - Control depends on how big our packet was (ie which controller we are using) 
       if (g_diystate.cbPacketSize > PKT_MSLIDER)
@@ -491,6 +502,7 @@ void DIYXBeeController::ControlInput(void)
 
       }
 
+#ifdef OPT_SINGLELEG      
       //---------------------------------------------------------------------------------------------------
       //Single Leg Mode
       //---------------------------------------------------------------------------------------------------
@@ -501,6 +513,7 @@ void DIYXBeeController::ControlInput(void)
         g_InControlState.InputTimeDelay = 128 -  max( max( abs(g_diyp.s.bRJoyLR-128),  abs(g_diyp.s.bRJoyUD-128)),  abs(g_diyp.s.bLJoyLR-128)) + (128 -(g_diyp.s.bLSlider)/2);
       }
 
+#endif
       //---------------------------------------------------------------------------------------------------
       // Sequence General Player Mode
       //---------------------------------------------------------------------------------------------------
@@ -580,7 +593,9 @@ void DIYXBeeController::ControlInput(void)
       g_InControlState.TravelLength.y = 0;
       g_BodyYOffset = 0;
       g_BodyYSift = 0;
+#ifdef OPT_SINGLELEG      
       g_InControlState.SelectedLeg = 255;
+#endif
       g_InControlState.fRobotOn = 0;
     }
   }

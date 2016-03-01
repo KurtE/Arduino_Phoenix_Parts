@@ -105,18 +105,22 @@ void ServoDriver::Init(void) {
 #define CVADR2      10  // VD Resistor 2
 #endif
 
-word  g_awVoltages[8]={
+uint16_t  g_awVoltages[8]={
   0,0,0,0,0,0,0,0};
-word  g_wVoltageSum = 0;
+uint16_t  g_wVoltageSum = 0;
 byte  g_iVoltages = 0;
 
-word ServoDriver::GetBatteryVoltage(void) {
+uint16_t ServoDriver::GetBatteryVoltage(void) {
   g_iVoltages = (++g_iVoltages)&0x7;  // setup index to our array...
   g_wVoltageSum -= g_awVoltages[g_iVoltages];
   g_awVoltages[g_iVoltages] = analogRead(cVoltagePin);
   g_wVoltageSum += g_awVoltages[g_iVoltages];
 
+#ifdef CVREF
+  return ((long)((long)g_wVoltageSum*CVREF*(CVADR1+CVADR2))/(long)(8192*(long)CVADR2));  
+#else
   return ((long)((long)g_wVoltageSum*125*(CVADR1+CVADR2))/(long)(2048*(long)CVADR2));  
+#endif
 
 }
 #endif

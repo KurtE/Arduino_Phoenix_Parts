@@ -238,7 +238,6 @@
 #define cLFTibiaLength    cXXTibiaLength
 
 
-
 //--------------------------------------------------------------------
 //[BODY DIMENSIONS]
 #define cRRCoxaAngle1   -450   //Default Coxa setup angle, decimals = 1

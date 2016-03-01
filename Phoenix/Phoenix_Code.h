@@ -482,7 +482,7 @@ INCONTROLSTATE   g_InControlState;      // This is our global Input control stat
 ServoDriver  g_ServoDriver;      // our global servo driver class
 
 boolean         g_fLowVoltageShutdown;    // If set the bot shuts down because the input voltage is to low
-word            Voltage;
+uint16_t      Voltage;
 
 
 //--boolean         g_InControlState.fRobotOn;            //Switch to turn on Phoenix
@@ -545,12 +545,12 @@ extern "C" {
 #endif
 
 PHOENIXGAIT APG[] = { 
-    {DEFAULT_SLOW_GAIT, 12, 3, 2, 2, 8, 3, {7, 11, 3, 1, 5, 9} GATENAME(s_szGN1)},        // Ripple 12
-    {DEFAULT_SLOW_GAIT, 8, 3, 2, 2, 4, 3, {1, 5, 1, 5, 1, 5} GATENAME(s_szGN2)},           //Tripod 8 steps
-    {DEFAULT_GAIT_SPEED, 12, 3, 2, 2, 8, 3, {5, 10, 3, 11, 4, 9} GATENAME(s_szGN3) },      //Triple Tripod 12 step
-    {DEFAULT_GAIT_SPEED, 16, 5, 3, 4, 10, 1, {6, 13, 4, 14, 5, 12} GATENAME(s_szGN4)},    // Triple Tripod 16 steps, use 5 lifted positions
-    {DEFAULT_SLOW_GAIT, 24, 3, 2, 2, 20, 3, {13, 17, 21, 1, 5, 9} GATENAME(s_szGN5)},     //Wave 24 steps
-    {DEFAULT_GAIT_SPEED, 6, 2, 1, 2, 4, 1, {1, 4, 1, 4, 1, 4} GATENAME(s_szGN6)}          //Tripod 6 steps
+    {DEFAULT_SLOW_GAIT, 12, 3, 2, 2, 8, 3, {7, 11, 3, 1, 5, 9} GAITNAME(s_szGN1)},        // Ripple 12
+    {DEFAULT_SLOW_GAIT, 8, 3, 2, 2, 4, 3, {1, 5, 1, 5, 1, 5} GAITNAME(s_szGN2)},           //Tripod 8 steps
+    {DEFAULT_GAIT_SPEED, 12, 3, 2, 2, 8, 3, {5, 10, 3, 11, 4, 9} GAITNAME(s_szGN3) },      //Triple Tripod 12 step
+    {DEFAULT_GAIT_SPEED, 16, 5, 3, 4, 10, 1, {6, 13, 4, 14, 5, 12} GAITNAME(s_szGN4)},    // Triple Tripod 16 steps, use 5 lifted positions
+    {DEFAULT_SLOW_GAIT, 24, 3, 2, 2, 20, 3, {13, 17, 21, 1, 5, 9} GAITNAME(s_szGN5)},     //Wave 24 steps
+    {DEFAULT_GAIT_SPEED, 6, 2, 1, 2, 4, 1, {1, 4, 1, 4, 1, 4} GAITNAME(s_szGN6)}          //Tripod 6 steps
 };    
 
 #else
@@ -562,8 +562,8 @@ extern "C" {
 }
 #endif
 PHOENIXGAIT APG[] = { 
-    {DEFAULT_GAIT_SPEED, 16, 3, 2, 2, 12, 3, 2250, 3600/16, 30, true, {5, 9, 1, 13} GATENAME(s_szGN1)},            // Wave 16
-    {1, 28, 3, 2, 2, 24, 3, 2250, 3600/28, 30, true, {8, 15, 1, 22} GATENAME(s_szGN2)}                             // Wave 28?
+    {DEFAULT_GAIT_SPEED, 16, 3, 2, 2, 12, 3, 2250, 3600/16, 30, true, {5, 9, 1, 13} GAITNAME(s_szGN1)},            // Wave 16
+    {1, 28, 3, 2, 2, 24, 3, 2250, 3600/28, 30, true, {8, 15, 1, 22} GAITNAME(s_szGN2)}                             // Wave 28?
 };    
 
 #endif
@@ -1845,7 +1845,7 @@ short CheckServoAngleBounds(short sID,  short sVal, const short *sMin PROGMEM, c
     // Note ID is bogus, but something to let me know which one.
     short s = (short)pgm_read_word(sMin);
     if (sVal < s) {
-#ifdef DEBUG
+#ifdef DEBUG_BOUNDS
       if (g_fDebugOutput) {
         DBGSerial.print(sID, DEC);
         DBGSerial.print(" ");
@@ -1859,7 +1859,7 @@ short CheckServoAngleBounds(short sID,  short sVal, const short *sMin PROGMEM, c
 
     s = (short)pgm_read_word(sMax);
     if (sVal > s) {
-#ifdef DEBUG
+#ifdef DEBUG_BOUNDS
       if (g_fDebugOutput) {
         DBGSerial.print(sID, DEC);
         DBGSerial.print(" ");

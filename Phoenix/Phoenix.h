@@ -195,9 +195,9 @@ typedef struct _PhoenixGait {
 PHOENIXGAIT;
 
 #ifdef DISPLAY_GAIT_NAMES
-#define GATENAME(name)  ,name
+#define GAITNAME(name)  ,name
 #else
-#define GATENAME(name)
+#define GAITNAME(name)
 #endif
 
 //==============================================================================
@@ -262,7 +262,7 @@ class ServoDriver {
 public:
   void Init(void);
 
-    word GetBatteryVoltage(void);
+    uint16_t GetBatteryVoltage(void);
 
 #ifdef OPT_GPPLAYER    
   inline boolean  FIsGPEnabled(void) {
