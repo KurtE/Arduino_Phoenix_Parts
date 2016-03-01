@@ -28,7 +28,7 @@
 #include <PS2X_lib.h>
 #include <SoftwareSerial.h>
 
-#include "Hex_CFG.h"
+#include "Hex_Cfg.h"
 #include <Phoenix.h>
 #include <Phoenix_Input_Commander.h>
 #include <Phoenix_Driver_SSC32.h>

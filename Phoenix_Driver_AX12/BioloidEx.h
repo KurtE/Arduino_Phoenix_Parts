@@ -64,7 +64,7 @@ class BioloidControllerEx
     
     /* Pose Engine */
     void interpolateSetup(int time);            // calculate speeds for smooth transition
-    void interpolateStep(boolean fWait=true);                     // move forward one step in current interpolation  
+    int interpolateStep(boolean fWait=true);                     // move forward one step in current interpolation  
     unsigned char interpolating;                // are we in an interpolation? 0=No, 1=Yes
     unsigned char runningSeq;                   // are we running a sequence? 0=No, 1=Yes 
     int poseSize;                               // how many servos are in this pose, used by Sync()

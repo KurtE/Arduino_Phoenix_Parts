@@ -34,7 +34,7 @@
 #include <Orion.h>
 
 #include <I2CEEProm.h>
-#include "Hex_CFG.h"
+#include "Hex_Cfg.h"
 #include <Phoenix.h>
 #include <Phoenix_driver_Orion.h>
 #include <Phoenix_Input_PS2.h>

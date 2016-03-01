@@ -13,27 +13,14 @@
 
 #define XBEEDATAVERSION      1                                         // Data version...
 
-#ifndef CXBEEPACKETTIMEOUTMS
-#define CXBEEPACKETTIMEOUTMS 250					// how long to wait for packet after we send request
-#endif
-
-#ifndef CXBEEFORCEREQMS	
-#define CXBEEFORCEREQMS		1000					// if nothing in 1 second force a request...
-#endif
-
-#ifndef CXBEETIMEOUTRECVMS
-#define CXBEETIMEOUTRECVMS	2000					// 2 seconds if we receive nothing
-#endif
-
-
-#define XBEE_TRANS_READY			0x01	// Transmitter is ready for requests.
+//#define XBEE_TRANS_READY			0x01	// Transmitter is ready for requests.
 // Optional Word to use in ATDL command
-#define XBEE_TRANS_NOTREADY		        0x02	// Transmitter is exiting transmitting on the sent DL
+//#define XBEE_TRANS_NOTREADY		        0x02	// Transmitter is exiting transmitting on the sent DL
 // No Extra bytes.
 #define XBEE_TRANS_DATA				0x03	// Data Packet from Transmitter to Robot*
 // Packet data described below.  Will only be sent when the robot sends
 // the remote a XBEE_RECV_REQ_DATA packet and we must return sequence number
-#define XBEE_TRANS_NEW				0x04	// New Data Available
+//#define XBEE_TRANS_NEW				0x04	// New Data Available
 // No extra data.  Will only be sent when we are in NEW only mode
 #define XBEE_ENTER_SSC_MODE			0x05	// The controller is letting robot know to enter SSC echo mode
 // while in this mode the robot will try to be a pass through to the robot. This code assumes
@@ -44,26 +31,26 @@
 // condition is reached.  Start of with $$<CR> command as to signal exit
 #define XBEE_REQ_SN_NI				0x06	// Request the serial number and NI string
 
-#define XBEE_TRANS_CHANGED_DATA                 0x07    // We transmite a bit mask with which fields changed plus the bytes that changes
+//#define XBEE_TRANS_CHANGED_DATA                 0x07    // We transmite a bit mask with which fields changed plus the bytes that changes
 
-#define XBEE_TRANS_NOTHIN_CHANGED               0x08    // 
-#define XBEE_TRANS_DATA_VERSION                 0x09    //  What format of data this transmitter supports. 
+//#define XBEE_TRANS_NOTHIN_CHANGED               0x08    // 
+//#define XBEE_TRANS_DATA_VERSION                 0x09    //  What format of data this transmitter supports. 
 // 1- New format supports changed data packets...
 #define XBEE_DEBUG_ATTACH                       0x0A     // Debug Attach - used to say send debug info to display
 #define XBEE_DEBUG_DETACH                       0x0B     // End debug output messages...
 #define XBEE_DEBUG_STRING                       0x0C     // Debug Text sent from Debug App...
 
 //[Packets sent from Robot to remote]
-#define XBEE_RECV_REQ_DATA			0x80	// Request Data Packet*
+//#define XBEE_RECV_REQ_DATA			0x80	// Request Data Packet*
 // Old Format No extra bytes: expect to receive XBEE_TRANS_DATA_PACKET
 // New Format 1 extra byte to signal - Will Return 1 of 3 messages...
-#define XBEE_RECV_REQ_NEW			0x81	// Request Only New data
+//#define XBEE_RECV_REQ_NEW			0x81	// Request Only New data
 // No Extra bytes goes into New only mode and we will typically 
 // wait until Remote says it has new data before asking for data.
 // In new mode, the remote may choose to choose a threshold of how big a change
 // needs to be before sending the XBEE_TRANS_NEW value.
-#define XBEE_RECV_REQ_NEW_OFF		        0x82	// We will request data when we want it
-#define XBEE_RECV_NEW_THRESH	 	        0x83	// Set new Data thresholds
+//#define XBEE_RECV_REQ_NEW_OFF		        0x82	// We will request data when we want it
+//#define XBEE_RECV_NEW_THRESH	 	        0x83	// Set new Data thresholds
 // currently not implemented
 #define XBEE_RECV_DISP_VAL			0x84	// Display a value on line 2
 // If <cbExtra> is  0 then we will display the number contained in <SerialNumber> 
@@ -153,24 +140,20 @@ typedef unsigned long ulong;
 typedef struct _diystate
 {
   // state information
-  boolean 	fTransReadyRecvd;
   boolean 	fPacketValid; 
+  boolean       fNewPacket;
+  boolean       fDataPacketsReceived;
   boolean 	fPacketTimeOut;
-  boolean 	fPacketForced;
   uint8_t         cbPacketSize;    // what was the size of the last data packet received.
   // More internal to function...
-  boolean 	fReqDataPacketSent;
-  boolean 	fReqDataForced;
-  boolean 	fSendOnlyNewMode;
   uint8_t	        bPacketNum;
+  uint8_t       bTxStatusLast;                          // status of our last TX message.
   uint8_t	        bAPIPacket[33];				// Api packet
   uint16_t	wAPIDL;					// current destination.
   uint16_t        wDBGDL;                                // Debug Destination.
-  uint8_t         bTransDataVersion;                      // What version of data 
 
   // Other information, could make static to file...
   ulong	ulLastPacket;
-  ulong 	ulLastRequest;
 
 } 
 DIYSTATE;
@@ -218,7 +201,6 @@ extern DIYSTATE g_diystate;
 // Forward references some may be moved to external files later
 extern void InitXBee();    // assume hard coded for now to UART2... 
 extern void SendXBeePacket(uint16_t wDL, uint8_t bPHType, uint8_t cbExtra, uint8_t *pbExtra);
-extern void SendXbeeNewDataOnlyPacket(boolean fNewOnly);
 extern void XBeeOutputVal(uint16_t w);
 extern boolean ReceiveXBeePacket(PDIYPACKET pdiyp);
 
@@ -227,29 +209,39 @@ extern void XBeeOutputStringF(const __FlashStringHelper *pString);
 #define XBEE_MAX_NOTES     5
 extern void XBeePlaySounds(uint8_t cNotes, ...);
 
-//extern void XBeeOutputVal(uint8_t bXbeeVal);
-//extern void XBeeOutputString(char *pString);
-//extern void XBeePlaySounds(uint8_t *pb, uint8_t cb);
 extern void APISendXBeeGetCmd(char c1, char c2);  // use this to send other commands as well
 extern uint16_t GetXBeeHVal (char c1, char c2);
-//extern uint16_t GetXBeeMY();
-//extern uint16_t GetXBeeDL();
 #define GetXBeeMY()			GetXBeeHVal ('M', 'Y')
 #define GetXBeeDL()			GetXBeeHVal ('D', 'L')
 extern void SetXBeeHexVal(char c1, char c2, unsigned long _lval);
 
 // These functions are the ones to actually talk to the hardware.  Should try to make sure
 // all of the other functions talk through these...
-extern uint8_t ReadFromXBee(uint8_t *pb, uint8_t cb, ulong Timeout, uint16_t wEOL);
 extern void ClearXBeeInputBuffer(void);
 extern boolean XBeeCheckForQueuedBytes(void);
 extern void WaitForXBeeTransmitComplete(void);
 
 extern void ClearInputBuffer(void);
 
-#if not defined(UBRR1H)
-extern SoftwareSerial XBeeSerial;
+#if defined(XBeeSerial)
+#undef cXBEE_IN
+#undef cXBEE_OUT
+
+#else
+extern SoftwareSerial XBeeSoftSerial;
+#define XBeeSerial XBeeSoftSerial
 #endif
+
+// Define Some internal debug pin support
+#ifdef OPT_DEBUGPINS
+#define DEBUGTOGGLE(pin) digitalWrite(pin, !digitalRead(pin))
+#else
+#define DEBUGTOGGLE(pin) 
+#endif
+#ifndef DEBUG_PINS_FIRST
+#define DEBUG_PINS_FIRST 2
+#endif
+
 
 
 #endif // _DIYXBEE_H_

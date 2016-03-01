@@ -1,3 +1,4 @@
+
 //=============================================================================
 //Project Lynxmotion Phoenix
 //Description: Phoenix, control file.
@@ -61,22 +62,11 @@
 //=============================================================================
 
 DIYPACKET  g_diyp;
-DIYPACKET  g_diypPrev;
 
 #ifdef DISP_VOLTAGE
 unsigned long ulTimeLastReported = 0;
 #endif
 extern "C" {
-  // Move the Gait Names to program space...
-  const char s_sGN1[] PROGMEM = "Ripple 12";
-  const char s_sGN2[] PROGMEM = "Tripod 8";
-  const char s_sGN3[] PROGMEM = "Tripple 12";
-  const char s_sGN4[] PROGMEM = "Tripple 16";
-  const char s_sGN5[] PROGMEM = "Wave 24";
-  const char s_sGN6[] PROGMEM = "Tripod 6";
-  PGM_P s_asGateNames[] PROGMEM = {
-    s_sGN1, s_sGN2, s_sGN3, s_sGN4, s_sGN5, s_sGN6        };
-
   const char s_sLJUDN1[] PROGMEM = "LJOYUD walk";
   const char s_sLJUDN2[] PROGMEM = "LJOYUD trans";
   const char s_sLJUDN3[] PROGMEM = "SetRotOffset";
@@ -159,17 +149,16 @@ void DIYXBeeController::Init(void)
   InitXBee();
 
 
-#ifdef __AVR__
-#if not defined(UBRR1H)
+// If using softwareserial need to do a listen...
+#ifdef cXBEE_IN
   XBeeSerial.listen();
 #endif    
-#endif     
   // Clear any stuff left in the buffer
   delay(20);
   ClearXBeeInputBuffer();
 
-#if 0 //def DBGSerial    
-  word wMy = GetXBeeMY();
+#ifdef DBGSerial    
+  uint16_t wMy = GetXBeeMY();
   DBGSerial.print("XBee My: ");
   DBGSerial.println(wMy, HEX);
 #endif    
@@ -188,10 +177,8 @@ void DIYXBeeController::Init(void)
 //==============================================================================
 void DIYXBeeController::AllowControllerInterrupts(boolean fAllow)
 {
-#ifdef __AVR__
-#if not defined(UBRR1H)
+#ifdef cXBEE_IN
   XBeeSerial.listen();
-#endif    
 #endif    
 }
 
@@ -205,27 +192,27 @@ void DIYXBeeController::ControlInput(void)
 {
   byte iNumButton;
 
+  uint16_t wButtonsPrev = g_diyp.s.wButtons ;
   // Then try to receive a packet of information from the XBEE.
   // It will return true if it has a valid packet
   if (ReceiveXBeePacket(&g_diyp)) {
-
-    if (memcmp((void*)&g_diyp, (void*)&g_diypPrev, sizeof(g_diyp)) != 0) {
-#ifdef XBEE_NEW_DATA_ONLY            
-      if (g_diystate.fPacketForced)
-        SendXbeeNewDataOnlyPacket(1);
-#endif                
-#ifdef DEBUG
-      // setup to output back to our USB port
-      if (g_fDebugOutput)  {
-        DBGPrintf("%x - %d %d - %d %d - %d %d\n", g_diyp.s.wButtons, g_diyp.s.bRJoyLR, g_diyp.s.bRJoyUD,
-        g_diyp.s.bLJoyLR, g_diyp.s.bLJoyUD, g_diyp.s.bRSlider, g_diyp.s.bLSlider);
-      }
-#endif
+    // With new protocol, we may have received several packets from remote during the last interation
+    // How should we handle this.  For most of the fields, maybe the last one is as good a thing as any
+    // but buttons, we may want some form of composit, so we won't miss some button events.
+    while (g_diystate.fNewPacket) {
+        if (!ReceiveXBeePacket(&g_diyp)) {
+           for (int i=0; i<10; i++) {
+                DEBUGTOGGLE(DEBUG_PINS_FIRST);
+                delayMicroseconds(5);
+            }
+            MSound(1, 50, 2500);
+            break;
+        }
     }
-
+    
     // OK lets try "0" button for Start. 
-    if ((g_diyp.s.wButtons & (1<<0)) && ((g_diypPrev.s.wButtons & (1<<0)) == 0)) { //Start Button (0 on keypad) test
-      if(g_InControlState.fHexOn)  {
+    if ((g_diyp.s.wButtons & (1<<0)) && ((wButtonsPrev & (1<<0)) == 0)) { //Start Button (0 on keypad) test
+      if(g_InControlState.fRobotOn)  {
         //Turn off
         g_InControlState.BodyPos.x = 0;
         g_InControlState.BodyPos.y = 0;
@@ -238,38 +225,40 @@ void DIYXBeeController::ControlInput(void)
         g_InControlState.TravelLength.y = 0;
         g_BodyYOffset = 0;
         g_BodyYSift = 0;
+#ifdef OPT_SINGLELEG      
         g_InControlState.SelectedLeg = 255;
-
-        g_InControlState.fHexOn = 0;
+#endif
+        g_InControlState.fRobotOn = 0;
       } 
       else  {
         //Turn on
-        g_InControlState.fHexOn = 1;
+        g_InControlState.fRobotOn = 1;
       }
     } 
 
-    if (g_InControlState.fHexOn) {
-      if ((g_diyp.s.wButtons & (1<<0xa)) && ((g_diypPrev.s.wButtons & (1<<0xa)) == 0)) { // A button test 
+    if (g_InControlState.fRobotOn) {
+      if ((g_diyp.s.wButtons & (1<<0xa)) && ((wButtonsPrev & (1<<0xa)) == 0)) { // A button test 
         MSound(1, 50, 2000);
         XBeePlaySounds(1, 50, 2000);
         bXBeeControlMode = WALKMODE;
         XBeeOutputStringF(F("Walking"));
       }
 
-      if ((g_diyp.s.wButtons & (1<<0xb)) && ((g_diypPrev.s.wButtons & (1<<0xb)) == 0)) { // B button test
+      if ((g_diyp.s.wButtons & (1<<0xb)) && ((wButtonsPrev & (1<<0xb)) == 0)) { // B button test
         MSound(1, 50, 2000);
         XBeePlaySounds(1, 50, 2000);
         bXBeeControlMode = TRANSLATEMODE;
-        XBeeOutputStringF(F("Body Translate"));
+        XBeeOutputStringF(F("Body Trans"));
       }
 
-      if ((g_diyp.s.wButtons & (1<<0xc)) && ((g_diypPrev.s.wButtons & (1<<0xc)) == 0)) { // C button test
+      if ((g_diyp.s.wButtons & (1<<0xc)) && ((wButtonsPrev & (1<<0xc)) == 0)) { // C button test
         MSound(1, 50, 2000);
         bXBeeControlMode = ROTATEMODE;
         XBeeOutputStringF(F("Body Rotate"));
       }
 
-      if ((g_diyp.s.wButtons & (1<<0xD)) && ((g_diypPrev.s.wButtons & (1<<0xd)) == 0)) { // D button test - Single Leg
+#ifdef OPT_SINGLELEG      
+      if ((g_diyp.s.wButtons & (1<<0xD)) && ((wButtonsPrev & (1<<0xd)) == 0)) { // D button test - Single Leg
         MSound(1, 50, 2000);
         if (g_InControlState.SelectedLeg==255) // none
           g_InControlState.SelectedLeg=cRF;
@@ -278,7 +267,8 @@ void DIYXBeeController::ControlInput(void)
         bXBeeControlMode=SINGLELEGMODE;        
         XBeeOutputStringF (F("Single Leg"));
       }
-      if ((g_diyp.s.wButtons & (1<<0xe)) && ((g_diypPrev.s.wButtons & (1<<0xe)) == 0)) { // E button test - Balance mode
+#endif
+      if ((g_diyp.s.wButtons & (1<<0xe)) && ((wButtonsPrev & (1<<0xe)) == 0)) { // E button test - Balance mode
         if (!g_InControlState.BalanceMode) {
           g_InControlState.BalanceMode = 1;
           MSound( 2, 100, 2000, 50, 4000);
@@ -294,7 +284,7 @@ void DIYXBeeController::ControlInput(void)
       }
 
 #ifdef OPT_GPPLAYER
-      if ((g_diyp.s.wButtons & (1<<0xf)) && ((g_diypPrev.s.wButtons & (1<<0xf)) == 0)) { // F button test - GP Player
+      if ((g_diyp.s.wButtons & (1<<0xf)) && ((wButtonsPrev & (1<<0xf)) == 0)) { // F button test - GP Player
         if (g_ServoDriver.FIsGPEnabled()) {   //F Button GP Player Mode Mode on/off -- SSC supports this mode
           XBeeOutputStringF(F("Run Sequence"));
           MSound(1, 50, 2000);
@@ -307,9 +297,10 @@ void DIYXBeeController::ControlInput(void)
           g_InControlState.TravelLength.x = 0;
           g_InControlState.TravelLength.z = 0;
           g_InControlState.TravelLength.y = 0;
-
+#ifdef OPT_SINGLELEG      
           g_InControlState.SelectedLeg=255;  //none
           g_InControlState.fSLHold=0;
+#endif
 
           bXBeeControlMode = GPPLAYERMODE;
         } 
@@ -323,8 +314,8 @@ void DIYXBeeController::ControlInput(void)
       // so lets convert our bitmap of which key may be pressed to a number...
       // BUGBUG:: There is probably a cleaner way to convert... Will extract buttons 1-9
       iNumButton = 0;  // assume no button
-      if ((g_diyp.s.wButtons & 0x3fe) && ((g_diypPrev.s.wButtons & 0x3fe) == 0)) { // buttons 1-9
-        word w = g_diyp.s.wButtons & 0x3fe;
+      if ((g_diyp.s.wButtons & 0x3fe) && ((wButtonsPrev & 0x3fe) == 0)) { // buttons 1-9
+        uint16_t w = g_diyp.s.wButtons & 0x3fe;
 
         while ((w & 0x1) == 0)     {
           w >>= 1;
@@ -335,26 +326,41 @@ void DIYXBeeController::ControlInput(void)
       // BUGBUG:: we are using all keys now, may want to reserve some...  
       //Switch gait
       // We will do slightly different here than the RC version as we have a bit per button
-      if ((bXBeeControlMode==WALKMODE) && iNumButton  && (iNumButton <= NUM_GAITS)) { //1-8 Button Gait select   
-        if ( abs(g_InControlState.TravelLength.x)<cTravelDeadZone &&  abs(g_InControlState.TravelLength.z)<cTravelDeadZone &&  
-          abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone)  {
-          //Switch Gait type
-          MSound( 1, 50, 2000);   //Sound P9, [50\4000]
-          g_InControlState.GaitType = iNumButton-1;
+      if ((bXBeeControlMode==WALKMODE) && iNumButton) { 
+        if (iNumButton <= NUM_GAITS) {              // The Gait number is in the range of the number of gaits defined.
+          if ( abs(g_InControlState.TravelLength.x)<cTravelDeadZone &&  abs(g_InControlState.TravelLength.z)<cTravelDeadZone &&  
+              abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone)  {
+            //Switch Gait type
+            MSound( 1, 50, 2000);   //Sound P9, [50\4000]
+            g_InControlState.GaitType = iNumButton-1;
 #ifdef DEBUG
-          DBGPrintf("New Gate: %d\n\r", g_InControlState.GaitType);
+#ifdef DBGSerial            
+            DBGSerial.print("New Gate: ");
+            DBGSerial.println(g_InControlState.GaitType, DEC);
 #endif
-          GaitSelect();
+#endif
+            GaitSelect();
 #ifdef DEBUG
-          DBGPrintf("Output Gate Named\n\r");
+#ifdef DBGSerial
+            DBGSerial.println("Output Gate Named");
 #endif
-          XBeeOutputStringF((const __FlashStringHelper *)pgm_read_word(&s_asGateNames[g_InControlState.GaitType]));
+#endif
+
+#ifdef DISPLAY_GAIT_NAMES
+            XBeeOutputStringF((const __FlashStringHelper *)g_InControlState.gaitCur.pszName);
+#endif
+          }
+        }  
+        else {
+          // Gait number is out of range.
+          MSound( 2, 50, 2000, 50, 2000);  
         }
       }
 
       //Switch single leg
+#ifdef OPT_SINGLELEG      
       if (bXBeeControlMode==SINGLELEGMODE) {
-        if (iNumButton>=1 && iNumButton<=6) {
+        if (iNumButton>=1 && iNumButton<=CNT_LEGS) {
           MSound( 1, 50, 2000);   //Sound P9, [50\4000]
           g_InControlState.SelectedLeg = iNumButton-1;
           g_InControlState.fSLHold=0;
@@ -370,6 +376,7 @@ void DIYXBeeController::ControlInput(void)
         g_InControlState.SelectedLeg=255; // none
         g_InControlState.fSLHold=0;
       }
+#endif
 
       //Body Height - Control depends on how big our packet was (ie which controller we are using) 
       if (g_diystate.cbPacketSize > PKT_MSLIDER)
@@ -495,6 +502,7 @@ void DIYXBeeController::ControlInput(void)
 
       }
 
+#ifdef OPT_SINGLELEG      
       //---------------------------------------------------------------------------------------------------
       //Single Leg Mode
       //---------------------------------------------------------------------------------------------------
@@ -505,6 +513,7 @@ void DIYXBeeController::ControlInput(void)
         g_InControlState.InputTimeDelay = 128 -  max( max( abs(g_diyp.s.bRJoyLR-128),  abs(g_diyp.s.bRJoyUD-128)),  abs(g_diyp.s.bLJoyLR-128)) + (128 -(g_diyp.s.bLSlider)/2);
       }
 
+#endif
       //---------------------------------------------------------------------------------------------------
       // Sequence General Player Mode
       //---------------------------------------------------------------------------------------------------
@@ -564,11 +573,11 @@ void DIYXBeeController::ControlInput(void)
 
       //Calculate walking time delay
     }
-    g_diypPrev = g_diyp; // remember the last packet
+   
   }  
   else  {
     // Not a valid packet - we should go to a turned off state as to not walk into things!
-    if (g_InControlState.fHexOn && (g_diystate.fPacketForced ))  {
+    if (g_InControlState.fRobotOn && (g_diystate.fPacketValid ))  {
       // Turn off
       //   MSound(4, 100,2500, 80, 2250, 100, 2500, 60, 20000); // play it a little different...
 
@@ -584,8 +593,10 @@ void DIYXBeeController::ControlInput(void)
       g_InControlState.TravelLength.y = 0;
       g_BodyYOffset = 0;
       g_BodyYSift = 0;
+#ifdef OPT_SINGLELEG      
       g_InControlState.SelectedLeg = 255;
-      g_InControlState.fHexOn = 0;
+#endif
+      g_InControlState.fRobotOn = 0;
     }
   }
 

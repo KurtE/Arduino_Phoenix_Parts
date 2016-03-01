@@ -32,7 +32,7 @@
 
 #include <I2CEEProm.h>
 #include <ServoEx.h>
-#include "Hex_CFG.h"
+#include "Hex_Cfg.h"
 #include <Phoenix.h>
 #include <Phoenix_Input_PS2.h>
 #include <phoenix_driver_ServoEx.h>

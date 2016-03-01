@@ -8,7 +8,7 @@
 //   Kåre Halvorsen aka Zenta - Makes everything work correctly!     
 //
 // This version of the Phoenix code was ported over to the Arduino Environement
-// and is specifically configured for the Arbotix Robocontroller board
+// and is specifically configured for the Lynxmotion BotBoarduino 
 //
 //=============================================================================
 //
@@ -24,14 +24,14 @@
 #include <Arduino.h>
 #else
 #endif
+#include <Wire.h>
 #include <EEPROM.h>
-#include <ax12.h>
-#include <BioloidEX.h>
+#include <PS2X_lib.h>
 
-#include "Hex_Cfg.h"
-
+#include <SoftwareSerial.h>
+#include "Hex_CFG.h"
 #include <Phoenix.h>
-#include <Phoenix_Input_DIYXbee.h>
-#include <Phoenix_Driver_AX12.h>
+#include <Phoenix_Input_PS2.h>
+#include <Phoenix_Driver_SSC32.h>
 #include <Phoenix_Code.h>
 
