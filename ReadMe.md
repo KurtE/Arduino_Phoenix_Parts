@@ -69,6 +69,8 @@ work on Arduino Mega class Arduinos.
 
 ServoEx - This is my own enhanced version of the Arduino Servo library that adds the ability for timed moves.
 
+Maestro - Implementation for the Pololu Maestro serial servo driver
+
 
 Input Classes 
 -------------
@@ -185,6 +187,9 @@ D<CR> - Toggles debug on and off. Allows me to have code in place that either ou
 E - EEPROM dumping functions. There is some quick and dirty code here. If the next character is a h, it will dump in hex, 
 if the next character is a w it will dump words. The next parameter is the start address. If not given starts where the previous one left off. 
 Next optional one is the number of bytes to dump  (Not on all boards)
+
+(Maestro only)
+W - EEPROM wiping function. Useful for resetting the servo offsets when changing configurations
 
 (SSC32 mainly)
 O - Enter Servo Offset mode. sometimes I find, that I screw up and plug the servos into the wrong SSC-32 pin. That is one of the good things about the 
