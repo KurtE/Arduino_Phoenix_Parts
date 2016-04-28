@@ -24,7 +24,7 @@
 #define HEX_CFG_PHOENIX3_H
 //[CONDITIONAL COMPILING] - COMMENT IF NOT WANTED
 // Define other optional compnents to be included or not...
-//#define OPT_TERMINAL_MONITOR  
+#define OPT_TERMINAL_MONITOR  
 
 #ifdef OPT_TERMINAL_MONITOR   // turning off terminal monitor will turn these off as well...
 #define OPT_FIND_SERVO_OFFSETS    // Only useful if terminal monitor is enabled
@@ -49,10 +49,28 @@ SoftwareSerial MAESTROSerial(cMAESTRO_IN, cMAESTRO_OUT);
 #endif
 
 // Serial port for the PS2 emulator
-SoftwareSerial SerSerial(10, 11);
 #define USEPS2
+#if defined(UBRR2H)
+#define SerSerial         Serial2
+#else
+SoftwareSerial SerSerial(10, 11);
+#endif
 
 // Define other optional compnents to be included or not...
+#define cRRCoxaInv 0 
+#define cRMCoxaInv 0 
+#define cRFCoxaInv 0 
+#define cLRCoxaInv 0
+#define cLMCoxaInv 0
+#define cLFCoxaInv 0
+
+#define cRRFemurInv 0 
+#define cRMFemurInv 0 
+#define cRFFemurInv 0
+#define cLRFemurInv 0
+#define cLMFemurInv 0
+#define cLFFemurInv 0
+
 #define cRRTibiaInv 1
 #define cRMTibiaInv 1
 #define cRFTibiaInv 1
