@@ -24,15 +24,20 @@
 #define HEX_CFG_PHOENIX3_H
 //[CONDITIONAL COMPILING] - COMMENT IF NOT WANTED
 // Define other optional compnents to be included or not...
+
+#define SOUND_PIN 3
 #define OPT_TERMINAL_MONITOR  
 
-#ifdef OPT_TERMINAL_MONITOR   // turning off terminal monitor will turn these off as well...
+#ifdef OPT_TERMINAL_MONITOR       // turning off terminal monitor will turn these off as well...
 #define OPT_FIND_SERVO_OFFSETS    // Only useful if terminal monitor is enabled
 #endif
 
 //#define OPT_GPPLAYER
 #define OPT_BACKGROUND_PROCESS
 #define OPT_SINGLELEG
+
+//#define DEFAULT_GAIT_SPEED 100
+//#define DEFAULT_SLOW_GAIT 120
 
 // Which type of control(s) do you want to compile in
 #ifdef OPT_TERMINAL_MONITOR   // turning off terminal monitor will turn these off as well...

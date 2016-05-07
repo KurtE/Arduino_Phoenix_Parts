@@ -72,7 +72,7 @@
 //				 	(Walk mode 2) Disable
 //	- Right Stick	(Walk mode 1) Rotate, 		
 //					(Walk mode 2) Walk/Rotate
-//	- R1			Toggle Double gait travel speed
+//	- R1			Toggle Double gait travel height
 //	- R2			Toggle Double gait travel length
 //
 //	[Shift Controls]
@@ -104,7 +104,7 @@
 //[CONSTANTS]
 // Default to Serial but allow to be defined to something else
 #ifndef SerSerial
-#define SerSerial Serial
+//#define SerSerial Serial
 #endif
 
 #ifndef SERIAL_BAUD
@@ -224,7 +224,7 @@ void InputController::ControlInput(void)
   ulLastChar = millis();
   for (byte i=0; i < 7; i++) {
     while  (SerSerial.available() == 0) {
-      if ((millis() - ulLastChar) > 200) {
+      if ((millis() - ulLastChar) > 50) {
         // We may have lost the serial communications 
         if (g_wSerialErrorCnt < MAXPS2ERRORCNT)
           g_wSerialErrorCnt++;    // Increment the error count and if to many errors, turn off the robot.
@@ -247,7 +247,7 @@ void InputController::ControlInput(void)
     g_wSerialErrorCnt = 0;    // clear out error count...
 
     if (ButtonPressed(SERB_START)) {// OK lets try "0" button for Start. 
-      if (g_InControlState.fRobotOn) {
+	  if (g_InControlState.fRobotOn) {
         SerTurnRobotOff();
       } 
       else {
