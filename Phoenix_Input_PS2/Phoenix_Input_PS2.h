@@ -92,6 +92,16 @@
 #define MAX_BODY_Y 100
 #endif
 
+#define CTRL_CLK    2
+
+#ifndef singleTravelLength
+#define singleTravelLength 10	//1 decimal place
+#endif
+
+#ifndef doubleTravelLength
+#define doubleTravelLength 20	//1 decimal place
+#endif
+
 //=============================================================================
 // Global - Local to this file only...
 //=============================================================================
@@ -127,8 +137,9 @@ void InputController::Init(void)
   int error;
 
   //error = ps2x.config_gamepad(57, 55, 56, 54);  // Setup gamepad (clock, command, attention, data) pins
-  error = ps2x.config_gamepad(PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT);  // Setup gamepad (clock, command, attention, data) pins
-
+  //error = ps2x.config_gamepad(PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT);  // Setup gamepad (clock, command, attention, data) pins
+  error = ps2x.config_gamepad(PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT, pressures, rumble);
+  
 #ifdef DBGSerial
 	DBGSerial.print("PS2 Init: ");
 	DBGSerial.println(error, DEC);
@@ -389,11 +400,14 @@ void InputController::ControlInput(void)
         else {
           g_InControlState.TravelLength.x = -(lx - 128);
           g_InControlState.TravelLength.z = (ly - 128);
+		  
+		  g_InControlState.TravelLength.x = (int)(g_InControlState.TravelLength.x/(float)(doubleTravelLength/10.0));
+          g_InControlState.TravelLength.z = (int)(g_InControlState.TravelLength.z/(float)(doubleTravelLength/10.0));
         }
 
         if (!DoubleTravelOn) {  //(Double travel length)
-          g_InControlState.TravelLength.x = g_InControlState.TravelLength.x/2;
-          g_InControlState.TravelLength.z = g_InControlState.TravelLength.z/2;
+          g_InControlState.TravelLength.x = (int)(g_InControlState.TravelLength.x/(float)(singleTravelLength/10.0));
+          g_InControlState.TravelLength.z = (int)(g_InControlState.TravelLength.z/(float)(singleTravelLength/10.0));
         }
 
         g_InControlState.TravelLength.y = -(ps2x.Analog(PSS_RX) - 128)/4; //Right Stick Left/Right 

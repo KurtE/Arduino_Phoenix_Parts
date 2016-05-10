@@ -25,7 +25,7 @@
 //[CONDITIONAL COMPILING] - COMMENT IF NOT WANTED
 // Define other optional compnents to be included or not...
 
-#define OPT_TERMINAL_MONITOR
+//#define OPT_TERMINAL_MONITOR
 
 #ifdef OPT_TERMINAL_MONITOR       // turning off terminal monitor will turn these off as well...
 #define OPT_FIND_SERVO_OFFSETS    // Only useful if terminal monitor is enabled
@@ -52,13 +52,13 @@
 SoftwareSerial MAESTROSerial(cMAESTRO_IN, cMAESTRO_OUT);
 #endif
 
-// Serial port for the PS2 emulator
-#define USEPS2
-#if defined(UBRR2H)
-#define SerSerial         Serial2
-#else
-SoftwareSerial SerSerial(10, 11);
-#endif
+
+#define PS2_DAT        13    
+#define PS2_CMD        11
+#define PS2_SEL        10
+#define PS2_CLK        12
+
+
 
 // Define other optional compnents to be included or not...
 #define cRRCoxaInv 0 
