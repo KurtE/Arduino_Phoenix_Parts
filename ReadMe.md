@@ -1,12 +1,31 @@
 Warning
 =======
-
-This is a Work In Progress!  There are no warrantees or Guarantees of any type that this code is useable for anything.  
+There are no warrantees or Guarantees of any type that this code is useable for anything.  
 
 But I hope it is.
 
 This set of directories are my latest attempt of breaking up the Phoenix code base for the Arduino, 
 into libraries that you can use to build different builds for many different hexapods as well as a few quads
+
+Trossen PhantomX Support
+========================
+
+For those users who are mainly interested in code to run on the PhantomX robot by Trossen Robotics.  You are
+probably better off using my other github project: https://github.com/KurtE/Phantom_Phoenix
+
+This project basially is a copy of those portions of this project that are specific for the PhantomX.  In particular
+it is setup to use the Servo Drivers that is setup for the Dynimixel Servos AX12 and AX18. It is also setup to use the Arbotix Commander. 
+
+Warning: I only do developement using the more recent versions of the Arduino IDE, which is currently at 1.8.3, which requires updated drivers and libraries to work.  I have my own version of the Bioloid libraries and hardware definitions to support this.  This is in my fork/branch:  https://github.com/KurtE/arbotix/tree/arduino-1-6
+
+Trossen started building a version of this off of my branch: which was in beta a long time ago and was never released.  You can find more information about that up at: http://learn.trossenrobotics.com/projects/182-arbotix-getting-started-guide-arduino-ide-1-6-x-setup.html
+
+Another Trossen member made an Arduino install package for this as well.  More details up at: 
+http://forums.trossenrobotics.com/showthread.php?9971-Question-Using-Arduino-IDE-1-8-1-and-Can-t-See-My-ArbotiX-M-on-the-Board-List&p=76461&highlight=#post76461
+
+Hopefully soon I will update the readme file in the Phantom_Phoenix project with more information as well
+
+
 
 Quad SUPPORT
 ============
