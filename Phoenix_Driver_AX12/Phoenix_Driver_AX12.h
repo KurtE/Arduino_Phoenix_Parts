@@ -725,6 +725,7 @@ void MakeSureServosAreOn(void)
       return;    // we are not free
 
     g_InputController.AllowControllerInterrupts(false);    // If on xbee on hserial tell hserial to not processess...
+#ifdef USE_AX12_SPEED_CONTROL
     if (g_fAXSpeedControl) {
       for(int i=0;i<NUMSERVOS;i++){
         g_awGoalAXPos[i] = ax12GetRegister(pgm_read_byte(&cPinTable[i]),AX_PRESENT_POSITION_L,2);
@@ -734,14 +735,11 @@ void MakeSureServosAreOn(void)
     else {
       bioloid.readPose();
     }
-
+#else
+    bioloid.readPose();
+#endif    
     SetRegOnAllServos(AX_TORQUE_ENABLE, 1);  // Use sync write to do it.
 
-#if 0
-    for (byte i = 0; i < NUMSERVOS; i++) {
-      TorqueOn(pgm_read_byte(&cPinTable[i]));
-    }
-#endif    
     g_InputController.AllowControllerInterrupts(true);    
     g_fServosFree = false;
   }   
