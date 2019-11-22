@@ -40,7 +40,7 @@
 //#define DEFAULT_GAIT_SPEED 100
 //#define DEFAULT_SLOW_GAIT 120
 
-//#define cEyesPin 13
+#define cEyesPin M5_LED
 
 // As given by sixaxis pair tool - matches PlayStation master MAC address
 char ps3ControllerMacAddr[] = "2c:81:58:a9:8d:76";
