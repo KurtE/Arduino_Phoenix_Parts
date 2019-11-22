@@ -81,6 +81,8 @@
 #define SINGLELEGMODE     3
 #define GPPLAYERMODE      4
 
+#define DEBUG_PS3_INPUT
+
 
 #define cTravelDeadZone 4      //The deadzone for the analog input from the remote
 #define  MAXPS3ERRORCNT  5     // How many times through the loop will we go before shutting off robot?
@@ -140,8 +142,7 @@ void InputController::Init(void)
   
   //extern char ps3ControllerMacAddr[];
   //Ps3.begin(ps3ControllerMacAddr);
-  //Ps3.begin("2c:81:58:a9:8d:76");
-  Ps3.begin();
+  Ps3.begin("2c:81:58:a9:8d:76");
   
 #ifdef DBGSerial
 	DBGSerial.print("PS3 Init: ");
@@ -184,18 +185,45 @@ void InputController::ControlInput(void)
   if (Ps3.isConnected()){
 #ifdef DBGSerial
 #ifdef DEBUG_PS3_INPUT
-	if (g_fDebugOutput) {
-		DBGSerial.print("PS3 Input: ");
-		DBGSerial.print(Ps3.data.button, HEX);
-		DBGSerial.print(":");
-		DBGSerial.print(Ps3.data.analog.stick.lx, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.print(Ps3.data.analog.stick.ly, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.print(Ps3.data.analog.stick.rx, DEC);
-		DBGSerial.print(" ");
-		DBGSerial.println(Ps3.data.analog.stick.ry, DEC);
-	}
+    if (g_fDebugOutput) {
+      DBGSerial.print("PS3 Input: lx:");
+      DBGSerial.print(Ps3.data.analog.stick.lx);
+      DBGSerial.print(" ly:");
+      DBGSerial.print(Ps3.data.analog.stick.ly);
+      DBGSerial.print(" rx:");
+      DBGSerial.print(Ps3.data.analog.stick.rx);
+      DBGSerial.print(" ry:");
+      DBGSerial.print(Ps3.data.analog.stick.ry);
+      
+      DBGSerial.print(" | a.x:");
+      DBGSerial.print(Ps3.data.sensor.accelerometer.x);
+      DBGSerial.print(" a.y:");
+      DBGSerial.print(Ps3.data.sensor.accelerometer.y);
+      DBGSerial.print(" a.z:");
+      DBGSerial.print(Ps3.data.sensor.accelerometer.z);
+      
+      DBGSerial.print(" | g.z:");
+      DBGSerial.print(Ps3.data.sensor.gyroscope.z);
+      
+      if( Ps3.data.button.cross ){ DBGSerial.print(" Button: CROSS"); }
+      if( Ps3.data.button.square ){ DBGSerial.print(" Button: SQUARE"); }
+      if( Ps3.data.button.triangle ){ DBGSerial.print(" Button: TRIANGLE"); }
+      if( Ps3.data.button.circle ){ DBGSerial.print(" Button: CIRCLE"); }
+      if( Ps3.data.button.left ){ DBGSerial.print(" Button: LEFT"); }
+      if( Ps3.data.button.right ){ DBGSerial.print(" Button: RIGHT"); }
+      if( Ps3.data.button.up ){ DBGSerial.print(" Button: UP"); }
+      if( Ps3.data.button.down ){ DBGSerial.print(" Button: DOWN"); }
+      if( Ps3.data.button.l1 ){ DBGSerial.print(" Button: L1"); }
+      if( Ps3.data.button.l2 ){ DBGSerial.print(" Button: L2"); }
+      if( Ps3.data.button.l3 ){ DBGSerial.print(" Button: L3"); }
+      if( Ps3.data.button.r1 ){ DBGSerial.print(" Button: R1"); }
+      if( Ps3.data.button.r2 ){ DBGSerial.print(" Button: R2"); }
+      if( Ps3.data.button.r3 ){ DBGSerial.print(" Button: R3"); }
+      if( Ps3.data.button.start ){ DBGSerial.print(" Button: START"); }
+      if( Ps3.data.button.select ){ DBGSerial.print(" Button: SELECT"); }
+
+      DBGSerial.println();
+    }
 #endif
 #endif
 
@@ -535,7 +563,9 @@ void InputController::ControlInput(void)
       g_sPS3ErrorCnt++;    // Increment the error count and if to many errors, turn off the robot.
     else if (g_InControlState.fRobotOn)
       PS3TurnRobotOff();
-    Ps3.begin(ps3ControllerMacAddr);
+    
+    // ###### THINK THIS IS BREAKING THE CODE #######
+    //Ps3.begin(ps3ControllerMacAddr);
   }
 }
 
