@@ -8,7 +8,11 @@
 #include <Arduino.h> // Arduino 1.0
 #else
 #include <Wprogram.h> // Arduino 0022
+#ifdef ESP32
+#include <pgmspace.h>
+#else
 #include <avr\pgmspace.h>
+#endif
 #endif
 
 
@@ -206,7 +210,7 @@ word g_wLastVoltage = 0xffff;    // save the last voltage we retrieved...
 
 unsigned long g_ulTimeLastBatteryVoltage;
 
-word ServoDriver::GetBatteryVoltage(void) {
+uint16_t ServoDriver::GetBatteryVoltage(void) {
   return 0;
 }
 #endif
@@ -336,6 +340,14 @@ void ServoDriver::CommitServoDriver(word wMoveTime)
 }
 
 //--------------------------------------------------------------------
+//Function that gets called from the main loop if the robot is not logically
+//     on.  Gives us a chance to play some...
+//--------------------------------------------------------------------
+void ServoDriver::IdleTime(void)
+{
+}
+
+//--------------------------------------------------------------------
 //[FREE SERVOS] Frees all the servos
 //--------------------------------------------------------------------
 void ServoDriver::FreeServos(void)
@@ -403,18 +415,18 @@ boolean ServoDriver::ProcessTerminalCommand(byte *psz, byte bLen)
   }
   if ((bLen == 1) && ((*psz == 'w') || (*psz == 'W'))) {
     int data;
-	Serial.println("Are you sure you want to set offsets to zero? Y/N: ");
+	DBGSerial.println("Are you sure you want to set offsets to zero? Y/N: ");
 	
 	//get user entered data
-	while (((data = Serial.read()) == -1) || ((data >= 10) && (data <= 15)))
+	while (((data = DBGSerial.read()) == -1) || ((data >= 10) && (data <= 15)))
 	;
 	
 	if ((data == 'Y') || (data == 'y')) {
 		LoadServosConfig(true);
-		Serial.println("\nAll offsets set to zero");
+		DBGSerial.println("\nAll offsets set to zero");
 	}
 	else {
-		Serial.println("Loading old configuration");
+		DBGSerial.println("Loading old configuration");
 		void LoadServosConfig();
 	}
   }
@@ -461,9 +473,9 @@ void FindServoOffsets()
 	
 	if (CheckVoltage()) {
 		// Voltage is low... 
-		Serial.println("Low Voltage: fix or hit $ to abort");
+		DBGSerial.println("Low Voltage: fix or hit $ to abort");
 		while (CheckVoltage()) {
-			if (Serial.read() == '$')  return;
+			if (DBGSerial.read() == '$')  return;
 		}
 	}
 
@@ -483,24 +495,24 @@ void FindServoOffsets()
 	}
 	
 	// OK lets move all of the servos to their zero point.
-	Serial.println("Find Servo Zeros.\n$-Exit, +- changes, *-change servo");
-	Serial.println("    0-5 Chooses a leg, C-Coxa, F-Femur, T-Tibia");
+	DBGSerial.println("Find Servo Zeros.\n$-Exit, +- changes, *-change servo");
+	DBGSerial.println("    0-5 Chooses a leg, C-Coxa, F-Femur, T-Tibia");
 
 	//sSN = true;
 	sSN = 0;
 	while(!fExit) {
 		if (fNew) {
 			sOffset = g_asLegOffsets[sSN];
-			Serial.print("Servo: ");
-			Serial.print(apszLegs[sSN/NUMSERVOSPERLEG]);
-			Serial.print(apszLJoints[sSN%NUMSERVOSPERLEG]);
-			Serial.print("(");
-			Serial.print(sOffset, DEC);
-			Serial.println(")");
+			DBGSerial.print("Servo: ");
+			DBGSerial.print(apszLegs[sSN/NUMSERVOSPERLEG]);
+			DBGSerial.print(apszLJoints[sSN%NUMSERVOSPERLEG]);
+			DBGSerial.print("(");
+			DBGSerial.print(sOffset, DEC);
+			DBGSerial.println(")");
 			
 			// Now lets wiggle the servo
-			//Serial.print("\nWiggling servo number: ");
-			//Serial.println(abMAESTROServoNum[sSN]);
+			//DBGSerial.print("\nWiggling servo number: ");
+			//DBGSerial.println(abMAESTROServoNum[sSN]);
 			maestro.writePos(abMAESTROServoNum[sSN], (1500 + sOffset + 100));
 			delay(250);
 			maestro.writePos(abMAESTROServoNum[sSN], (1500 + sOffset - 100));
@@ -512,7 +524,7 @@ void FindServoOffsets()
 		}
 
 		//get user entered data
-		data = Serial.read();
+		data = DBGSerial.read();
 		
 		//if data received
 		if (data !=-1) 	{
@@ -525,8 +537,8 @@ void FindServoOffsets()
 				else
 					sOffset -= 5;		// increment by 5us
 				
-				Serial.print("    ");
-				Serial.println(sOffset, DEC);
+				DBGSerial.print("    ");
+				DBGSerial.println(sOffset, DEC);
 				
 				g_asLegOffsets[sSN] = sOffset;
 				maestro.writePos(abMAESTROServoNum[sSN], (1500 + sOffset));
@@ -558,16 +570,16 @@ void FindServoOffsets()
 		}
 	}
 	
-	Serial.print("Find Servo exit ");
+	DBGSerial.print("Find Servo exit ");
 	for (sSN=0; sSN < 6*NUMSERVOSPERLEG; sSN++) {
-		Serial.print(" ");
-		Serial.print(g_asLegOffsets[sSN], DEC);
+		DBGSerial.print(" ");
+		DBGSerial.print(g_asLegOffsets[sSN], DEC);
 	}
 
-	Serial.print("\nSave Changes? Y/N: ");
+	DBGSerial.print("\nSave Changes? Y/N: ");
 
 	//get user entered data
-	while (((data = Serial.read()) == -1) || ((data >= 10) && (data <= 15)))
+	while (((data = DBGSerial.read()) == -1) || ((data >= 10) && (data <= 15)))
 	;
 	
 	if ((data == 'Y') || (data == 'y')) {
@@ -587,10 +599,10 @@ void FindServoOffsets()
 		// Then write out to address 1 our calculated checksum
 		EEPROM.write(1, bChkSum);
 		
-		Serial.println("\nFinished saving changes");
+		DBGSerial.println("\nFinished saving changes");
 	}
 	else {
-		Serial.println("\nChanges discarded. Loading old configuration");
+		DBGSerial.println("\nChanges discarded. Loading old configuration");
 		void LoadServosConfig();
 	}
 	

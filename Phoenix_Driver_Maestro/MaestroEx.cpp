@@ -24,7 +24,11 @@
  
 #include "MaestroEx.h"
 //#include "Hex_Cfg.h"
-#include <avr/pgmspace.h>
+#ifdef ESP32
+#include <pgmspace.h>
+#else
+#include <avr\pgmspace.h>
+#endif
 
 
 #if cMAESTRO_IN == 0
