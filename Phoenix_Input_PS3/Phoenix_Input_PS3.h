@@ -132,21 +132,11 @@ extern void PS3TurnRobotOff(void);
 // If both PS3 and XBee are defined then we will become secondary to the xbee
 void InputController::Init(void)
 {
-  int error;
-
   // Setup the PS3 controller
-  //Ps3.attach(ControlInput);
-  //Ps3.attach(joystickCallback);
-  //Ps3.attachOnConnect(connectCallback);
-  //Ps3.attachOnDisconnect(disconnectCallback);
-  
-  //extern char ps3ControllerMacAddr[];
-  //Ps3.begin(ps3ControllerMacAddr);
-  Ps3.begin("2c:81:58:a9:8d:76");
+  Ps3.begin(ps3ControllerMacAddr);
   
 #ifdef DBGSerial
-	DBGSerial.print("PS3 Init: ");
-	DBGSerial.println(error, DEC);
+	DBGSerial.println("PS3 Init");
 #endif
   g_BodyYOffset = 0;    
   g_BodyYShift = 0;
