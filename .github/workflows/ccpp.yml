@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - uses: actions/checkout@v1
     - name: Display the path
       run: echo $PATH
       shell: bash
@@ -16,5 +17,5 @@ jobs:
       shell: bash
     - name: install dependencies
       run: |
-        apt-get update
-        apt-get install curl python git
+        sudo apt-get update
+        sudo apt-get install curl python git
