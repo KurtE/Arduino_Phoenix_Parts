@@ -9,8 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-    - name: Display the path
-      run: echo $PATH
+    - name: Display the current directory path
+      run: echo $PWD
       shell: bash
     - name: Display the folder contents
       run: ls -la
@@ -21,7 +21,6 @@ jobs:
         sudo apt-get install curl python git
     - name: Download Arduino portable version
       run: |
-        cd /
         curl -O https://downloads.arduino.cc/arduino-1.8.7-linux64.tar.xz
     - name: Unpack the contents of the Arduino package
       run: tar xvfJ arduino-1.8.7-linux64.tar.xz
@@ -30,5 +29,12 @@ jobs:
       shell: bash
     - name: Install Arduino boards and packages required
       run: |
-        /arduino-1.8.7/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
-        /arduino-1.8.7/arduino --install-boards esp32:esp32  
+        cd arduino-1.8.7
+        ls -la
+        arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
+        arduino --install-boards esp32:esp32  
+    - name: Setup Arduino CLI
+      uses: arduino/setup-arduino-cli@v1.0.0
+      with:
+        # Version to use. Example: 0.5.0
+        version: 0.5 # optional, default is 0.x
