@@ -8,6 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v1
+    - name: Display the path
+      run: echo $PATH
+      shell: bash
+    - name: Display the folder contents
+      run: ls -la
+      shell: bash
     - name: install dependencies
-      run: apt-get update -y && apt-get install curl python git -y 
+      run: |
+        apt-get update
+        apt-get install curl python git
