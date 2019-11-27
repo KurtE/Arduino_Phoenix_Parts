@@ -1,0 +1,35 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: Display the current directory path
+      run: echo $PWD
+      shell: bash
+    - name: Display the folder contents
+      run: ls -la
+      shell: bash
+    - name: install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install curl python git
+    - name: Download Arduino portable version
+      run: |
+        curl -O https://downloads.arduino.cc/arduino-1.8.7-linux64.tar.xz
+    - name: Unpack the contents of the Arduino package
+      run: tar xvfJ arduino-1.8.7-linux64.tar.xz
+    - name: Display the folder contents
+      run: ls -la
+      shell: bash
+    - name: Install Arduino boards and packages required
+      run: |
+        cd arduino-1.8.7
+        ls -la
+        ${PWD}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
+        ${PWD}/arduino --install-boards esp32:esp32  
