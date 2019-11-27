@@ -16,36 +16,24 @@
  License along with this library; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#if ARDUINO>99
 #include <Arduino.h> // Arduino 1.0
-#else
-#include <Wprogram.h> // Arduino 0022
-#endif
- 
 #include "MaestroEx.h"
-//#include "Hex_Cfg.h"
+
 #ifdef ESP32
-#include <pgmspace.h>
+  #include <pgmspace.h>
 #else
-#include <avr\pgmspace.h>
+  #include <avr\pgmspace.h>
 #endif
 
-
-#if cMAESTRO_IN == 0
-#define MAESTROSerial Serial1
-#else
-SoftwareSerial MAESTROSerial(cMAESTRO_IN, cMAESTRO_OUT);
-#endif
 
 #ifdef c4DOF
-#define NUMSERVOSPERLEG 4
+  #define NUMSERVOSPERLEG 4
 #else
-#define NUMSERVOSPERLEG 3
+  #define NUMSERVOSPERLEG 3
 #endif
 
 
-/* initializes serial1 transmit at baud, 8-N-1 */
-MaestroControllerEx::MaestroControllerEx(long baud){
+void MaestroControllerEx::begin() {
   id_ = (unsigned char *) malloc(MAX_NUM_SERVOS * sizeof(unsigned char));
   pose_ = (unsigned int *) malloc(MAX_NUM_SERVOS * sizeof(unsigned int));
   nextpose_ = (unsigned int *) malloc(MAX_NUM_SERVOS * sizeof(unsigned int));
@@ -63,8 +51,6 @@ MaestroControllerEx::MaestroControllerEx(long baud){
   interpolating = 0;
   playing = 0;
   nextframe_ = millis();
-  
-  MAESTROSerial.begin(baud);
 }
 
 void MaestroControllerEx::setId(int index, int id){
@@ -91,7 +77,7 @@ void MaestroControllerEx::readPose(){
 //  }
 }
 
-int readPos(int id) {
+int MaestroControllerEx::readPos(int id) {
 	byte sendBytes[2];
 	byte replyBytes[2];
 	int responsePosition;
@@ -99,11 +85,11 @@ int readPos(int id) {
 	sendBytes[0] = 0x90; // Command byte: Set Target.
 	sendBytes[1] = id; // First data byte holds channel number.
 	
-	MAESTROSerial.print(sendBytes[0]);
-	MAESTROSerial.print(sendBytes[1]);
+	port_.print(sendBytes[0]);
+	port_.print(sendBytes[1]);
 	
-	replyBytes[0] = MAESTROSerial.read();
-	replyBytes[1] = MAESTROSerial.read();
+	replyBytes[0] = port_.read();
+	replyBytes[1] = port_.read();
 	
 	responsePosition = replyBytes[1];          //send x_high to rightmost 8 bits
 	responsePosition = responsePosition << 8;  //shift x_high over to leftmost 8 bits
@@ -154,7 +140,7 @@ void MaestroControllerEx::writePos(int pin, int target){
 	serialBytes[2] = target & 0x7F; // Second byte holds the lower 7 bits of target.
 	serialBytes[3] = (target >> 7) & 0x7F;   // Third data byte holds the bits 7-13 of target.
 
-	MAESTROSerial.write(serialBytes, 4);
+	port_.write(serialBytes, 4);
 }
 
 /**
@@ -179,7 +165,7 @@ void MaestroControllerEx::writeGroup(int startPin, int numServos, unsigned int p
 		j++;
 	}
 	
-	MAESTROSerial.write(serialBytes, numBytes);
+	port_.write(serialBytes, numBytes);
 }
 
 /**

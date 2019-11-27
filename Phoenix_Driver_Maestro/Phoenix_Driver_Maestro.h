@@ -4,15 +4,11 @@
 // Servo Driver - This version is setup to use AX-12 type servos using the
 // Arbotix AX12 and bioloid libraries (which may have been updated)
 //====================================================================
-#if ARDUINO>99
-#include <Arduino.h> // Arduino 1.0
-#else
-#include <Wprogram.h> // Arduino 0022
+#include <Arduino.h>
 #ifdef ESP32
 #include <pgmspace.h>
 #else
 #include <avr\pgmspace.h>
-#endif
 #endif
 
 
@@ -23,8 +19,8 @@
 #endif
 
 #define NUMSERVOS (NUMSERVOSPERLEG*6)
-short g_asLegOffsets[NUMSERVOS];       // Offsets per leg
-boolean g_fAXSpeedControl;      // flag to know which way we are doing output...
+short g_asLegOffsets[NUMSERVOS];        // Offsets per leg
+boolean g_fAXSpeedControl;              // flag to know which way we are doing output...
 #include "MaestroEx.h"
 
 #ifdef DBGSerial
@@ -53,8 +49,8 @@ const byte cTarsPin[] PROGMEM = {
   cRRTarsPin, cRMTarsPin, cRFTarsPin, cLRTarsPin, cLMTarsPin, cLFTarsPin};
 #endif
 
-// Not sure yet if I will use the controller class or not, but...
-MaestroControllerEx maestro = MaestroControllerEx(cMAESTRO_BAUD);
+// Declarations from Hex_Cfg.h seen here, but not in MaestroEx files so need to pass it all in to constructor
+MaestroControllerEx maestro = MaestroControllerEx(MAESTROSerial, cMAESTRO_BAUD, cMAESTRO_IN, cMAESTRO_OUT);
 boolean g_fServosFree;    // Are the servos in a free state?
 
 
@@ -145,7 +141,6 @@ void SetServoIds(void) {
 	maestro.setId(22, cLFTibiaPin);
 	maestro.setId(23, cLFTarsPin);
 #endif
-	
 }
 
 // Some forward references

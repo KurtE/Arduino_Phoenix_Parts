@@ -17,8 +17,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef BioloidEx_h
-#define BioloidEx_h
+#ifndef MaestroEx_h
+#define MaestroEx_h
 
 /* poses:
  *  PROGMEM prog_uint16_t name[ ] = {4,512,512,482,542}; // first number is # of servos
@@ -26,7 +26,6 @@
  *  PROGMEM transition_t name[] = {{NULL,count},{pose_name,1000},...} 
  */
 
-//#include <ax12.h>
 #include <inttypes.h>
 
 /* pose engine runs at 30Hz (33ms between frames) 
@@ -36,48 +35,51 @@
 
 
 
-
-
 /** a structure to hold transitions **/
 typedef struct{
-    unsigned int * pose;    // addr of pose to transition to 
-    int time;               // time for transition
+  unsigned int * pose;    // addr of pose to transition to 
+  int time;               // time for transition
 } transition_t; 
 
 /** Bioloid Controller Class for mega324p/644p clients. **/
 class MaestroControllerEx
 {
   public:
-    /* For compatibility with legacy code */
-    MaestroControllerEx(long baud);               // baud usually 1000000
+    MaestroControllerEx(HardwareSerial & port, long baud) : port_ (port), baud_ (baud) {
+      begin();
+      port_.begin(baud_);
+    }
+    MaestroControllerEx(HardwareSerial & port, long baud, int rxPin, int txPin) : port_(port), baud_(baud), rxPin_(rxPin), txPin_(txPin) {
+      begin();
+      port_.begin(baud_, SERIAL_8N1, rxPin_, txPin_);
+    }
     
-    /* New-style constructor/setup */ 
-    MaestroControllerEx() {};
+    void begin();
     void setup(int servo_cnt);
 
     /* Pose Manipulation */
-    void loadPose( const unsigned int * addr ); // load a named pose from FLASH  
-    void readPose();                            // read a pose in from the servos  
-    int readPos(int id);
-	void writePose();                           // write a pose out to the servos
-    void writePos(int id, int pos);
-	void writeGroup(int startId, int numServos, unsigned int positionArray[]);
-	int getCurPose(int id);                     // get a servo value in the current pose
-    int getNextPose(int id);                    // get a servo value in the next pose
-    void setNextPose(int id, int pos);          // set a servo value in the next pose
-    void setNextPoseByIndex(int index, int pos);  // set a servo value by index for next pose
-    void setId(int index, int id);              // set the id of a particular storage index
-    int getId(int index);                       // get the id of a particular storage index
+    void  loadPose( const unsigned int * addr );  // load a named pose from FLASH  
+    void  readPose();                             // read a pose in from the servos  
+    int   readPos(int id);
+	  void  writePose();                            // write a pose out to the servos
+    void  writePos(int id, int pos);
+	  void  writeGroup(int startId, int numServos, unsigned int positionArray[]);
+	  int   getCurPose(int id);                     // get a servo value in the current pose
+    int   getNextPose(int id);                    // get a servo value in the next pose
+    void  setNextPose(int id, int pos);           // set a servo value in the next pose
+    void  setNextPoseByIndex(int index, int pos); // set a servo value by index for next pose
+    void  setId(int index, int id);               // set the id of a particular storage index
+    int   getId(int index);                       // get the id of a particular storage index
     
     /* Pose Engine */
-    void interpolateSetup(int time);            // calculate speeds for smooth transition
-    void interpolateStep(bool fWait=true);                     // move forward one step in current interpolation  
-    unsigned char interpolating;                // are we in an interpolation? 0=No, 1=Yes
-    unsigned char runningSeq;                   // are we running a sequence? 0=No, 1=Yes 
-    int poseSize;                               // how many servos are in this pose, used by Sync()
+    void interpolateSetup(int time);              // calculate speeds for smooth transition
+    void interpolateStep(bool fWait=true);        // move forward one step in current interpolation  
+    unsigned char interpolating;                  // are we in an interpolation? 0=No, 1=Yes
+    unsigned char runningSeq;                     // are we running a sequence? 0=No, 1=Yes 
+    int poseSize;                                 // how many servos are in this pose, used by Sync()
     
     // Kurt's Hacks
-    uint8_t frameLength;                        // Allow variable frame lengths, to test...
+    uint8_t frameLength;                          // Allow variable frame lengths, to test...
 
     /* to interpolate:
      *  bioloid.loadPose(myPose);
@@ -89,9 +91,9 @@ class MaestroControllerEx
      */
 
     /* Sequence Engine */
-    void playSeq( const transition_t * addr );  // load a sequence and play it from FLASH
-    void play();                                // keep moving forward in time
-    unsigned char playing;                      // are we playing a sequence? 0=No, 1=Yes
+    void playSeq( const transition_t * addr );    // load a sequence and play it from FLASH
+    void play();                                  // keep moving forward in time
+    unsigned char playing;                        // are we playing a sequence? 0=No, 1=Yes
 
     /* to run the sequence engine:
      *  bioloid.playSeq(walk);
@@ -101,16 +103,19 @@ class MaestroControllerEx
      */
     
   private:  
-    unsigned int * pose_;                       // the current pose, updated by Step(), set out by Sync()
-    unsigned int * nextpose_;                   // the destination pose, where we put on load
-    int * speed_;                               // speeds for interpolation 
-    unsigned char * id_;                        // servo id for this index
+    unsigned int * pose_;                         // the current pose, updated by Step(), set out by Sync()
+    unsigned int * nextpose_;                     // the destination pose, where we put on load
+    int * speed_;                                 // speeds for interpolation 
+    unsigned char * id_;                          // servo id for this index
 
-//    unsigned long lastframe_;                   // time last frame was sent out  
-    unsigned long nextframe_;                   //    
-    transition_t * sequence;                    // sequence we are running
-    int transitions;                            // how many transitions we have left to load
+    unsigned long nextframe_;                     //    
+    transition_t * sequence;                      // sequence we are running
+    int transitions;                              // how many transitions we have left to load
+    
+    HardwareSerial & port_;
+    long baud_;
+    int rxPin_;
+    int txPin_;
    
 };
 #endif
-
