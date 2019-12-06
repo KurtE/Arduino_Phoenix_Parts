@@ -80,8 +80,8 @@
     // Required if using sofware serial connection for Maestro
     
     //#define SOUND_PIN   5       // Botboarduino JR pin number
-    #define cMAESTRO_OUT 5        //GPIO36 - Output pin for (MAESTRO RX)
-    #define cMAESTRO_IN  15       //GPIO26 - Input pin for (MAESTRO TX)
+    #define cMAESTRO_OUT 0        //GPIO36 - Output pin for (MAESTRO RX)
+    #define cMAESTRO_IN  26       //GPIO26 - Input pin for (MAESTRO TX)
     
     // Serial connection settings for debugging and connection to Maestro servo controller
     #ifdef UBRR1H
