@@ -49,10 +49,12 @@ class MaestroControllerEx
       begin();
       port_.begin(baud_);
     }
+#ifdef ESP32
     MaestroControllerEx(HardwareSerial & port, long baud, int rxPin, int txPin) : port_(port), baud_(baud), rxPin_(rxPin), txPin_(txPin) {
       begin();
       port_.begin(baud_, SERIAL_8N1, rxPin_, txPin_);
     }
+#endif
     
     void begin();
     void setup(int servo_cnt);
