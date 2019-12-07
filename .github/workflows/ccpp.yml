@@ -36,7 +36,11 @@ jobs:
         git clone https://github.com/m5stack/M5StickC.git
         git clone https://github.com/madsci1016/Arduino-PS2X.git
         ls -la
+        echo ${PWD}
+      shell: bash
     - name: Compile project
       run: |
+        echo ${PWD}
         cd Phoenix/AliPhoenix_PS3_Maestro_M5StickC/
         ~/arduino-1.8.7/arduino --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify AliPhoenix_PS3_Maestro_M5StickC.ino
+      shell: bash
