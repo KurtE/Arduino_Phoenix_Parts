@@ -41,6 +41,12 @@ jobs:
         ls -la
         echo ${PWD}
       shell: bash
+    - name: arduino folder contents
+      run: |
+        cd arduino-1.8.7
+        echo ${PWD}
+        ls -la
+      shell: bash
     - name: Compile project
       run: |
         echo ${PWD}
