@@ -29,12 +29,15 @@ jobs:
       shell: bash
     - name: Install Arduino boards and packages required
       run: |
+        mv Phoenix_* arduino-1.8.7/
         cd arduino-1.8.7
-        ls -la
         ${PWD}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
         ${PWD}/arduino --install-boards esp32:esp32
-    - name: Display the folder contents
-      run: ls -la
-      shell: bash
-    - name: Install any required libraries
-      run: git clone https://github.com/m5stack/M5StickC.git
+        git clone https://github.com/m5stack/M5StickC.git
+        git clone https://github.com/madsci1016/Arduino-PS2X.git
+        ls -la
+    - name: Compile project
+      run: |
+        ${PWD}
+        cd Phoenix/AliPhoenix_PS3_Maestro_M5StickC/
+        arduino --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify weather_display.ino
