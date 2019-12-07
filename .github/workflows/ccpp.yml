@@ -38,8 +38,5 @@ jobs:
         ls -la
     - name: Compile project
       run: |
-        ${PWD}
-        cd ~/
-        ${PWD}
         cd Phoenix/AliPhoenix_PS3_Maestro_M5StickC/
-        arduino --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify weather_display.ino
+        ~/arduino-1.8.7/arduino --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify AliPhoenix_PS3_Maestro_M5StickC.ino
