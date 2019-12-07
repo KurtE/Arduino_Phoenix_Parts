@@ -29,12 +29,14 @@ jobs:
       shell: bash
     - name: Install Arduino boards and packages required
       run: |
-        mv Phoenix_* arduino-1.8.7/
-        cd arduino-1.8.7
-        ${PWD}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
-        ${PWD}/arduino --install-boards esp32:esp32
-        git clone https://github.com/m5stack/M5StickC.git
-        git clone https://github.com/madsci1016/Arduino-PS2X.git
+        mv Phoenix_* arduino-1.8.7/libraries/
+        mv ServoEx arduino-1.8.7/libraries/
+        mv Phoenix/Phoenix.h arduino-1.8.7/libraries/Phoenix/
+        mv Phoenix/Phoenix_Code.h arduino-1.8.7/libraries/Phoenix/
+        ${PWD}/arduino-1.8.7/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
+        ${PWD}/arduino-1.8.7/arduino --install-boards esp32:esp32
+        git clone https://github.com/m5stack/M5StickC.git arduino-1.8.7/libraries/M5StickC
+        git clone https://github.com/madsci1016/Arduino-PS2X.git arduino-1.8.7/libraries/Arduino-PS2X
         ls -la
         echo ${PWD}
       shell: bash
@@ -42,6 +44,6 @@ jobs:
       run: |
         echo ${PWD}
         ls -la
-        cd Phoenix/AliPhoenix_PS3_Maestro_M5StickC/
-        ~/arduino-1.8.7/arduino --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify AliPhoenix_PS3_Maestro_M5StickC.ino
+        # cd Phoenix/AliPhoenix_PS3_Maestro_M5StickC/
+        # ~/arduino-1.8.7/arduino --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify AliPhoenix_PS3_Maestro_M5StickC.ino
       shell: bash
