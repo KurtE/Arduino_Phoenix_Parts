@@ -47,6 +47,12 @@ jobs:
         echo ${PWD}
         ls -la
       shell: bash
+    - name: arduino library folder contents
+      run: |
+        cd arduino-1.8.7/libraries/
+        echo ${PWD}
+        ls -la
+      shell: bash
     - name: Compile project
       run: |
         ${PWD}/arduino-1.8.7/arduino --board esp32:esp32:m5stick-c --verify Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC.ino
