@@ -37,7 +37,10 @@ jobs:
         ${PWD}/arduino-1.8.7/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
         ${PWD}/arduino-1.8.7/arduino --install-boards esp32:esp32
         git clone https://github.com/m5stack/M5StickC.git arduino-1.8.7/libraries/M5StickC
-        # git clone https://github.com/madsci1016/Arduino-PS2X.git arduino-1.8.7/libraries/Arduino-PS2X
+        git clone https://github.com/jvpernis/esp32-ps3.git arduino-1.8.7/libraries/esp32-ps3
+        cd arduino-1.8.7/libraries/esp32-ps3
+        git checkout develop
+        cd ../../../
         ls -la
         echo ${PWD}
       shell: bash
