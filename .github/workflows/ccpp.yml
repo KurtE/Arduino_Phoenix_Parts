@@ -4,12 +4,11 @@ on: [push, pull_request]
 
 jobs:
   build:
+    env: 
+      ARDUINO_VERSION: 1.8.7
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name:
-      run: |
-        export ARDUINO_VERSION=1.8.7
     - name: Install dependencies
       run: |
         sudo apt-get update
