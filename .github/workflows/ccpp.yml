@@ -19,34 +19,24 @@ jobs:
         curl -O https://downloads.arduino.cc/arduino-${ARDUINO_VERSION}-linux64.tar.xz
     - name: Unpack the contents of the Arduino package
       run: tar xvfJ arduino-${ARDUINO_VERSION}-linux64.tar.xz
-    - name: Install Arduino boards and packages required
+    - name: Install Arduino boards required
+      run: |
+        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
+        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --install-boards esp32:esp32
+      shell: bash
+    - name: Set up the Phoenix library
       run: |
         mv Phoenix_* arduino-${ARDUINO_VERSION}/libraries/
         mv ServoEx arduino-${ARDUINO_VERSION}/libraries/
         mkdir arduino-${ARDUINO_VERSION}/libraries/Phoenix
         mv Phoenix/Phoenix.h arduino-${ARDUINO_VERSION}/libraries/Phoenix/
         mv Phoenix/Phoenix_Code.h arduino-${ARDUINO_VERSION}/libraries/Phoenix/
-        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
-        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --install-boards esp32:esp32
+    - name: Install Phoenix dependency libraries
+      run: |
         git clone https://github.com/m5stack/M5StickC.git arduino-${ARDUINO_VERSION}/libraries/M5StickC
         git clone https://github.com/jvpernis/esp32-ps3.git arduino-${ARDUINO_VERSION}/libraries/esp32-ps3
         cd arduino-${ARDUINO_VERSION}/libraries/esp32-ps3
         git checkout develop
-        cd ../../../
-        ls -la
-        echo ${PWD}
-      shell: bash
-    - name: arduino folder contents
-      run: |
-        cd arduino-${ARDUINO_VERSION}
-        echo ${PWD}
-        ls -la
-      shell: bash
-    - name: arduino library folder contents
-      run: |
-        cd arduino-${ARDUINO_VERSION}/libraries/
-        echo ${PWD}
-        ls -la
       shell: bash
     - name: Compile project
       run: |
