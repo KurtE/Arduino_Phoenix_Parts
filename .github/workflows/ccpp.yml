@@ -17,7 +17,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install curl python git
         pip install pyserial
-    - name: Download Arduino ${ARDUINO_VERSION} portable version
+    - name: Download Arduino ${{ matrix.arduino }} portable version
       run: |
         curl -O https://downloads.arduino.cc/arduino-${{ matrix.arduino }}-linux64.tar.xz
     - name: Unpack the contents of the Arduino package
@@ -29,19 +29,19 @@ jobs:
       shell: bash
     - name: Set up the Phoenix library
       run: |
-        mv Phoenix_* arduino-${ARDUINO_VERSION}/libraries/
-        mv ServoEx arduino-${ARDUINO_VERSION}/libraries/
-        mkdir arduino-${ARDUINO_VERSION}/libraries/Phoenix
-        mv Phoenix/Phoenix.h arduino-${ARDUINO_VERSION}/libraries/Phoenix/
-        mv Phoenix/Phoenix_Code.h arduino-${ARDUINO_VERSION}/libraries/Phoenix/
+        mv Phoenix_* arduino-${{ matrix.arduino }}/libraries/
+        mv ServoEx arduino-${{ matrix.arduino }}/libraries/
+        mkdir arduino-${{ matrix.arduino }}/libraries/Phoenix
+        mv Phoenix/Phoenix.h arduino-${{ matrix.arduino }}/libraries/Phoenix/
+        mv Phoenix/Phoenix_Code.h arduino-${{ matrix.arduino }}/libraries/Phoenix/
     - name: Install Phoenix dependency libraries
       run: |
-        git clone https://github.com/m5stack/M5StickC.git arduino-${ARDUINO_VERSION}/libraries/M5StickC
-        git clone https://github.com/jvpernis/esp32-ps3.git arduino-${ARDUINO_VERSION}/libraries/esp32-ps3
-        cd arduino-${ARDUINO_VERSION}/libraries/esp32-ps3
+        git clone https://github.com/m5stack/M5StickC.git arduino-${{ matrix.arduino }}/libraries/M5StickC
+        git clone https://github.com/jvpernis/esp32-ps3.git arduino-${{ matrix.arduino }}/libraries/esp32-ps3
+        cd arduino-${{ matrix.arduino }}/libraries/esp32-ps3
         git checkout develop
       shell: bash
     - name: Compile project
       run: |
-        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --board esp32:esp32:m5stick-c --verify Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC.ino
+        ${PWD}/arduino-${{ matrix.arduino }}/arduino --board esp32:esp32:m5stick-c --verify Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC.ino
       shell: bash
