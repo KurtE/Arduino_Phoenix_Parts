@@ -4,6 +4,9 @@ on: [push, pull_request]
 
 jobs:
   build:
+    strategy:
+      matrix:
+        arduino: [1.8.9, 1.8.10]
     env: 
       ARDUINO_VERSION: 1.8.10
     runs-on: ubuntu-latest
@@ -16,13 +19,13 @@ jobs:
         pip install pyserial
     - name: Download Arduino ${ARDUINO_VERSION} portable version
       run: |
-        curl -O https://downloads.arduino.cc/arduino-${ARDUINO_VERSION}-linux64.tar.xz
+        curl -O https://downloads.arduino.cc/arduino-${{ matrix.arduino }}-linux64.tar.xz
     - name: Unpack the contents of the Arduino package
-      run: tar xvfJ arduino-${ARDUINO_VERSION}-linux64.tar.xz
+      run: tar xvfJ arduino-${{ matrix.arduino }}-linux64.tar.xz
     - name: Install Arduino boards required
       run: |
-        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
-        ${PWD}/arduino-${ARDUINO_VERSION}/arduino --install-boards esp32:esp32
+        ${PWD}/arduino-${{ matrix.arduino }}/arduino --pref "boardsmanager.additional.urls=https://dl.espressif.com/dl/package_esp32_index.json" --save-prefs
+        ${PWD}/arduino-${{ matrix.arduino }}/arduino --install-boards esp32:esp32
       shell: bash
     - name: Set up the Phoenix library
       run: |
