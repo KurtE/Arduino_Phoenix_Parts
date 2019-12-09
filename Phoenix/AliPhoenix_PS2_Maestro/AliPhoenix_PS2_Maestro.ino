@@ -20,11 +20,7 @@
 //=============================================================================
 
 #define DEFINE_HEX_GLOBALS
-#if ARDUINO>99
 #include <Arduino.h>
-#else
-#endif
-//#include <Wire.h>
 #include <EEPROM.h>
 #include <PS2X_lib.h>
 #include <SoftwareSerial.h>

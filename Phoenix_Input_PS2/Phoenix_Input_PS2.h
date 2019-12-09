@@ -4,11 +4,11 @@
 //The control input subroutine for the phoenix software is placed in this file.
 //Can be used with V2.0 and above
 //Configuration version: V1.0
-//Date: 12-11-20019
+//Date: 25-10-2009
 //Programmer: Jeroen Janssen (aka Xan)
-//            Kurt Eckhardt (aka KurtE) - converted to c ported to Arduino...
-//            Andrew Klimovski - Added ESP32 and PS3 support
-//Hardware setup: PS3 version
+//             Kurt Eckhardt (aka KurtE) - converted to c ported to Arduino...
+//
+//Hardware setup: PS2 version
 // 
 //NEW IN V1.0
 //- First Release
@@ -22,7 +22,7 @@
 //- Right StickWalk/Rotate
 //
 //
-//PS3 CONTROLS:
+//PS2 CONTROLS:
 //[Common Controls]
 //- StartTurn on/off the bot
 //- L1Toggle Shift mode
@@ -70,13 +70,8 @@
 //
 //====================================================================
 // [Include files]
-#if ARDUINO>99
 #include <Arduino.h> // Arduino 1.0
-#else
-#include <Wprogram.h> // Arduino 0022
-#endif
-//#include <PS2X_lib.h>
-#include <Ps3Controller.h>
+#include <PS2X_lib.h>
 
 //[CONSTANTS]
 #define WALKMODE          0
@@ -106,7 +101,9 @@
 //=============================================================================
 // Global - Local to this file only...
 //=============================================================================
-//PS2X ps2x; // create PS2 Controller Class
+PS2X ps2x;              // create PS2 Controller Class
+bool pressures = true;  // enable the pressure input on the controller
+bool rumble = true;     // enable controller rumble feature
 
 
 // Define an instance of the Input Controller...
@@ -115,13 +112,13 @@ InputController  g_InputController;       // Our Input controller
 
 static short      g_BodyYOffset; 
 static short      g_sPS2ErrorCnt;
-static short       g_BodyYShift;
-static byte        ControlMode;
-static bool        DoubleHeightOn;
-static bool        DoubleTravelOn;
-static bool        WalkMethod;
-byte            GPSeq;             //Number of the sequence
-short              g_sGPSMController;    // What GPSM value have we calculated. 0xff - Not used yet
+static short      g_BodyYShift;
+static byte       ControlMode;
+static bool       DoubleHeightOn;
+static bool       DoubleTravelOn;
+static bool       WalkMethod;
+byte              GPSeq;                //Number of the sequence
+short             g_sGPSMController;    // What GPSM value have we calculated. 0xff - Not used yet
 
 // some external or forward function references.
 extern void PS2TurnRobotOff(void);
@@ -136,16 +133,10 @@ extern void PS2TurnRobotOff(void);
 void InputController::Init(void)
 {
   int error;
-
-  // Setup the PS3 controller
-  //Ps3.attach(ControlInput);
-  //Ps3.attach(joystickCallback);
-  //Ps3.attachOnConnect(connectCallback);
-  //Ps3.attachOnDisconnect(disconnectCallback);
-  Ps3.begin(ps3ControllerMacAddr);
+  error = ps2x.config_gamepad(PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT, pressures, rumble);
   
 #ifdef DBGSerial
-	DBGSerial.print("PS3 Init: ");
+	DBGSerial.print("PS2 Init: ");
 	DBGSerial.println(error, DEC);
 #endif
   g_BodyYOffset = 0;    
@@ -171,7 +162,7 @@ void InputController::AllowControllerInterrupts(boolean fAllow)
 }
 
 //==============================================================================
-// This is The main code to input function to read inputs from the PS3 and then
+// This is The main code to input function to read inputs from the PS2 and then
 //process any commands.
 //==============================================================================
 #ifdef OPT_DYNAMIC_ADJUST_LEGS  
@@ -185,22 +176,21 @@ void InputController::ControlInput(void)
   // Then try to receive a packet of information from the PS2.
   ps2x.read_gamepad();          //read controller and set large motor to spin at 'vibrate' speed
 
-  // Wish the library had a valid way to verify that the read_gamepad succeeded... Will hack for now
-  //if ((ps2x.Analog(1) & 0xf0) == 0x70) {
-  if (Ps3.isConnected()){
+    // Wish the library had a valid way to verify that the read_gamepad succeeded... Will hack for now
+  if ((ps2x.Analog(1) & 0xf0) == 0x70) {
 #ifdef DBGSerial
 #ifdef DEBUG_PS2_INPUT
 	if (g_fDebugOutput) {
-		DBGSerial.print("PS3 Input: ");
-		DBGSerial.print(Ps3.data.button, HEX);
+		DBGSerial.print("PS2 Input: ");
+		DBGSerial.print(ps2x.ButtonDataByte(), HEX);
 		DBGSerial.print(":");
-		DBGSerial.print(Ps3.data.analog.stick.lx, DEC);
+		DBGSerial.print(ps2x.Analog(PSS_LX), DEC);
 		DBGSerial.print(" ");
-		DBGSerial.print(Ps3.data.analog.stick.ly, DEC);
+		DBGSerial.print(ps2x.Analog(PSS_LY), DEC);
 		DBGSerial.print(" ");
-		DBGSerial.print(Ps3.data.analog.stick.rx, DEC);
+		DBGSerial.print(ps2x.Analog(PSS_RX), DEC);
 		DBGSerial.print(" ");
-		DBGSerial.println(Ps3.data.analog.stick.ry, DEC);
+		DBGSerial.println(ps2x.Analog(PSS_RY), DEC);
 	}
 #endif
 #endif
@@ -213,7 +203,7 @@ void InputController::ControlInput(void)
     // In an analog mode so should be OK...
     g_sPS2ErrorCnt = 0;    // clear out error count...
 
-    if (Ps3.data.button.start) {// OK lets press start button
+    if (ps2x.ButtonPressed(PSB_START)) {// OK lets press start button
       if (g_InControlState.fRobotOn) {
         PS2TurnRobotOff();
       } 
@@ -228,7 +218,7 @@ void InputController::ControlInput(void)
       // [SWITCH MODES]
 
       //Translate mode
-      if (Ps3.data.button.l1) {// L1 Button Test
+      if (ps2x.ButtonPressed(PSB_L1)) {// L1 Button Test
         MSound( 1, 50, 2000);  
         if (ControlMode != TRANSLATEMODE )
           ControlMode = TRANSLATEMODE;
@@ -243,7 +233,7 @@ void InputController::ControlInput(void)
       }
 
       //Rotate mode
-      if (Ps3.data.button.l2) {    // L2 Button Test
+      if (ps2x.ButtonPressed(PSB_L2)) {    // L2 Button Test
         MSound( 1, 50, 2000);
         if (ControlMode != ROTATEMODE)
           ControlMode = ROTATEMODE;
@@ -259,7 +249,7 @@ void InputController::ControlInput(void)
 
       //Single leg mode fNO
 #ifdef OPT_SINGLELEG
-      if (Ps3.data.button.circle) {// O - Circle Button Test
+      if (ps2x.ButtonPressed(PSB_CIRCLE)) {// O - Circle Button Test
         if (abs(g_InControlState.TravelLength.x)<cTravelDeadZone && abs(g_InControlState.TravelLength.z)<cTravelDeadZone 
           && abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone )   {
           if (ControlMode != SINGLELEGMODE) {
@@ -276,7 +266,7 @@ void InputController::ControlInput(void)
 #endif
 #ifdef OPT_GPPLAYER
       // GP Player Mode X
-      if (Ps3.data.button.cross) { // X - Cross Button Test
+      if (ps2x.ButtonPressed(PSB_CROSS)) { // X - Cross Button Test
         MSound(1, 50, 2000);  
         if (ControlMode != GPPLAYERMODE) {
           ControlMode = GPPLAYERMODE;
@@ -289,7 +279,7 @@ void InputController::ControlInput(void)
 
       //[Common functions]
       //Switch Balance mode on/off 
-      if (Ps3.data.button.square) { // Square Button Test
+      if (ps2x.ButtonPressed(PSB_SQUARE)) { // Square Button Test
         g_InControlState.BalanceMode = !g_InControlState.BalanceMode;
         if (g_InControlState.BalanceMode) {
           MSound(1, 250, 1500); 
@@ -300,7 +290,7 @@ void InputController::ControlInput(void)
       }
 
       //Stand up, sit down  
-      if (Ps3.data.button.triangle) { // Triangle - Button Test
+      if (ps2x.ButtonPressed(PSB_TRIANGLE)) { // Triangle - Button Test
         if (g_BodyYOffset>0) 
           g_BodyYOffset = 0;
         else
@@ -308,7 +298,7 @@ void InputController::ControlInput(void)
         fAdjustLegPositions = true;
       }
 
-      if (Ps3.data.button.up) {// D-Up - Button Test
+      if (ps2x.ButtonPressed(PSB_PAD_UP)) {// D-Up - Button Test
         g_BodyYOffset += 10;
 
         // And see if the legs should adjust...
@@ -317,7 +307,7 @@ void InputController::ControlInput(void)
           g_BodyYOffset = MAX_BODY_Y;
       }
 
-      if (Ps3.data.button.down) && g_BodyYOffset) {// D-Down - Button Test
+      if (ps2x.ButtonPressed(PSB_PAD_DOWN) && g_BodyYOffset) {// D-Down - Button Test
         if (g_BodyYOffset > 10)
           g_BodyYOffset -= 10;
         else
@@ -327,14 +317,14 @@ void InputController::ControlInput(void)
         fAdjustLegPositions = true;
       }
 
-      if (Ps3.data.button.right) { // D-Right - Button Test
+      if (ps2x.ButtonPressed(PSB_PAD_RIGHT)) { // D-Right - Button Test
         if (g_InControlState.SpeedControl>0) {
           g_InControlState.SpeedControl = g_InControlState.SpeedControl - 50;
           MSound( 1, 50, 2000);  
         }
       }
 
-      if (Ps3.data.button.left) { // D-Left - Button Test
+      if (ps2x.ButtonPressed(PSB_PAD_LEFT)) { // D-Left - Button Test
         if (g_InControlState.SpeedControl<2000 ) {
           g_InControlState.SpeedControl = g_InControlState.SpeedControl + 50;
           MSound( 1, 50, 2000); 
@@ -343,13 +333,13 @@ void InputController::ControlInput(void)
       
       // We are optionally going to allow the user to modify the Initial Leg positions, when they
       // press the L3 button.
-      byte lx = Ps3.data.analog.stick.lx;
-      byte ly = Ps3.data.analog.stick.ly;
+      byte lx = ps2x.Analog(PSS_LX);
+      byte ly = ps2x.Analog(PSS_LY);
 #ifdef OPT_DYNAMIC_ADJUST_LEGS  
 #ifdef OPT_SINGLELEG
-      if (Ps3.data.button.l3) {    // L3 pressed, use this to modify leg positions.
+      if (ps2x.Button(PSB_L3)) {    // L3 pressed, use this to modify leg positions.
 #else
-      if (Ps3.data.button.circle) {// O - Circle Button Test 
+      if (ps2x.Button(PSB_CIRCLE)) {// O - Circle Button Test 
 #endif      
         sLegInitXZAdjust = ((int)lx-128)/10;        // play with this.
         sLegInitAngleAdjust = ((int)ly-128)/8;
@@ -361,7 +351,7 @@ void InputController::ControlInput(void)
       //[Walk functions]
       if (ControlMode == WALKMODE) {
         //Switch gates
-        if (Ps3.data.button.select            // Select Button Test
+        if (ps2x.ButtonPressed(PSB_SELECT)            // Select Button Test
         && abs(g_InControlState.TravelLength.x)<cTravelDeadZone //No movement
         && abs(g_InControlState.TravelLength.z)<cTravelDeadZone 
           && abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone  ) {
@@ -377,7 +367,7 @@ void InputController::ControlInput(void)
         }
 
         //Double leg lift height
-        if (Ps3.data.button.r1) { // R1 Button Test
+        if (ps2x.ButtonPressed(PSB_R1)) { // R1 Button Test
           MSound( 1, 50, 2000); 
           DoubleHeightOn = !DoubleHeightOn;
           if (DoubleHeightOn)
@@ -387,20 +377,20 @@ void InputController::ControlInput(void)
         }
 
         //Double Travel Length
-        if (Ps3.data.button.r2) {// R2 Button Test
+        if (ps2x.ButtonPressed(PSB_R2)) {// R2 Button Test
           MSound(1, 50, 2000); 
           DoubleTravelOn = !DoubleTravelOn;
         }
 
         // Switch between Walk method 1 && Walk method 2
-        if (Ps3.data.button.r3) { // R3 Button Test
+        if (ps2x.ButtonPressed(PSB_R3)) { // R3 Button Test
           MSound(1, 50, 2000); 
           WalkMethod = !WalkMethod;
         }
 
         //Walking
         if (WalkMethod)  //(Walk Methode) 
-          g_InControlState.TravelLength.z = (Ps3.data.analog.stick.ry-128); //Right Stick Up/Down  
+          g_InControlState.TravelLength.z = (ps2x.Analog(PSS_RY)-128); //Right Stick Up/Down  
 
         else {
           g_InControlState.TravelLength.x = -(lx - 128);
@@ -415,7 +405,7 @@ void InputController::ControlInput(void)
           g_InControlState.TravelLength.z = (int)(g_InControlState.TravelLength.z/(float)(singleTravelLength/10.0));
         }
 
-        g_InControlState.TravelLength.y = -(Ps3.data.analog.stick.rx - 128)/4; //Right Stick Left/Right 
+        g_InControlState.TravelLength.y = -(ps2x.Analog(PSS_RX) - 128)/4; //Right Stick Left/Right 
       }
 
       //[Translate functions]
@@ -423,23 +413,23 @@ void InputController::ControlInput(void)
       if (ControlMode == TRANSLATEMODE) {
         g_InControlState.BodyPos.x = (lx - 128)/2;
         g_InControlState.BodyPos.z = -(ly - 128)/3;
-        g_InControlState.BodyRot1.y = (Ps3.data.analog.stick.rx - 128)*2;
-        g_BodyYShift = (-(Ps3.data.analog.stick.ry - 128)/2);
+        g_InControlState.BodyRot1.y = (ps2x.Analog(PSS_RX) - 128)*2;
+        g_BodyYShift = (-(ps2x.Analog(PSS_RY) - 128)/2);
       }
 
       //[Rotate functions]
       if (ControlMode == ROTATEMODE) {
         g_InControlState.BodyRot1.x = (ly - 128);
-        g_InControlState.BodyRot1.y = (Ps3.data.analog.stick.rx - 128)*2;
+        g_InControlState.BodyRot1.y = (ps2x.Analog(PSS_RX) - 128)*2;
         g_InControlState.BodyRot1.z = (lx - 128);
-        g_BodyYShift = (-(Ps3.data.analog.stick.ry - 128)/2);
+        g_BodyYShift = (-(ps2x.Analog(PSS_RY) - 128)/2);
       }
 
       //[Single leg functions]
 #ifdef OPT_SINGLELEG
       if (ControlMode == SINGLELEGMODE) {
         //Switch leg for single leg control
-        if (Ps3.data.button.select) { // Select Button Test
+        if (ps2x.ButtonPressed(PSB_SELECT)) { // Select Button Test
           MSound(1, 50, 2000); 
           if (g_InControlState.SelectedLeg<(CNT_LEGS-1))
             g_InControlState.SelectedLeg = g_InControlState.SelectedLeg+1;
@@ -448,11 +438,11 @@ void InputController::ControlInput(void)
         }
 
         g_InControlState.SLLeg.x= (lx - 128)/2; //Left Stick Right/Left
-        g_InControlState.SLLeg.y= (Ps3.data.analog.stick.ry - 128)/10; //Right Stick Up/Down
+        g_InControlState.SLLeg.y= (ps2x.Analog(PSS_RY) - 128)/10; //Right Stick Up/Down
         g_InControlState.SLLeg.z = (ly - 128)/2; //Left Stick Up/Down
 
         // Hold single leg in place
-        if (Ps3.data.button.r2) { // R2 Button Test
+        if (ps2x.ButtonPressed(PSB_R2)) { // R2 Button Test
           MSound(1, 50, 2000);  
           g_InControlState.fSLHold = !g_InControlState.fSLHold;
         }
@@ -467,10 +457,10 @@ void InputController::ControlInput(void)
         // Have to keep reminding myself that commander library already subtracted 128...
         if (g_ServoDriver.FIsGPSeqActive() ) {
           if ((g_sGPSMController != 32767)  
-            || (Ps3.data.analog.stick.ry > (128+16)) || (Ps3.data.analog.stick.ry < (128-16)))
+            || (ps2x.Analog(PSS_RY) > (128+16)) || (ps2x.Analog(PSS_RY) < (128-16)))
           {
             // We are in speed modify mode...
-            short sNewGPSM = map(Ps3.data.analog.stick.ry, 0, 255, -200, 200);
+            short sNewGPSM = map(ps2x.Analog(PSS_RY), 0, 255, -200, 200);
             if (sNewGPSM != g_sGPSMController) {
               g_sGPSMController = sNewGPSM;
               g_ServoDriver.GPSetSpeedMultiplyer(g_sGPSMController);
@@ -480,7 +470,7 @@ void InputController::ControlInput(void)
         }
 
         //Switch between sequences
-        if (Ps3.data.button.select) { // Select Button Test
+        if (ps2x.ButtonPressed(PSB_SELECT)) { // Select Button Test
           if (!g_ServoDriver.FIsGPSeqActive() ) {
             if (GPSeq < 5) {  //Max sequence
               MSound(1, 50, 1500);
@@ -493,7 +483,7 @@ void InputController::ControlInput(void)
           }
         }
         //Start Sequence
-        if (Ps3.data.button.r2)// R2 Button Test
+        if (ps2x.ButtonPressed(PSB_R2))// R2 Button Test
           if (!g_ServoDriver.FIsGPSeqActive() ) {
           g_ServoDriver.GPStartSeq(GPSeq);
             g_sGPSMController = 32767;  // Say that we are not in Speed modify mode yet... valid ranges are 50-200 (both postive and negative... 
@@ -508,7 +498,7 @@ void InputController::ControlInput(void)
 #endif // OPT_GPPLAYER
 
       //Calculate walking time delay
-      g_InControlState.InputTimeDelay = 128 - max(max(abs(lx - 128), abs(ly - 128)), abs(Ps3.data.analog.stick.rx - 128));
+      g_InControlState.InputTimeDelay = 128 - max(max(abs(lx - 128), abs(ly - 128)), abs(ps2x.Analog(PSS_RX) - 128));
     }
 
     //Calculate g_InControlState.BodyPos.y
@@ -541,7 +531,7 @@ void InputController::ControlInput(void)
       g_sPS2ErrorCnt++;    // Increment the error count and if to many errors, turn off the robot.
     else if (g_InControlState.fRobotOn)
       PS2TurnRobotOff();
-    Ps3.begin(ps3ControllerMacAddr);
+    ps2x.reconfig_gamepad();
   }
 }
 
