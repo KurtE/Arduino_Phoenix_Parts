@@ -5,8 +5,17 @@ on: [push, pull_request]
 jobs:
   build:
     strategy:
+      max-parallel: 2
       matrix:
-        arduino: [1.8.9, 1.8.10]
+        arduino:
+          - 1.8.9
+          - 1.8.10
+        sketch:
+          - Phoenix/AliPhoenix_PS2_Maestro/AliPhoenix_PS2_Maestro.ino
+          - Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
+        board:
+          - esp32:esp32:m5stick-c
+          - arduino:arv:leonardo
     env: 
       ARDUINO_VERSION: 1.8.10
     runs-on: ubuntu-latest
@@ -40,8 +49,12 @@ jobs:
         git clone https://github.com/jvpernis/esp32-ps3.git arduino-${{ matrix.arduino }}/libraries/esp32-ps3
         cd arduino-${{ matrix.arduino }}/libraries/esp32-ps3
         git checkout develop
+        cd ..
+        git clone https://github.com/madsci1016/Arduino-PS2X.git
+        mv Arduino-PS2X/* .
+        rm -r Arduino-PS2X
       shell: bash
     - name: Compile project
       run: |
-        ${PWD}/arduino-${{ matrix.arduino }}/arduino --board esp32:esp32:m5stick-c --verify Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC.ino
+        ${PWD}/arduino-${{ matrix.arduino }}/arduino --board ${{ matrix.board }} --verify Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC.ino
       shell: bash
