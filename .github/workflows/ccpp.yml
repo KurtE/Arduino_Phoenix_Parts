@@ -44,6 +44,7 @@ jobs:
     - name: Install Phoenix dependency libraries
       run: |
         git clone https://github.com/m5stack/M5StickC.git arduino-${{ matrix.arduino }}/libraries/M5StickC
+        git clone https://github.com/plerup/espsoftwareserial.git arduino-${{ matrix.arduino }}/libraries/espsoftwareserial
         git clone https://github.com/jvpernis/esp32-ps3.git arduino-${{ matrix.arduino }}/libraries/esp32-ps3
         cd arduino-${{ matrix.arduino }}/libraries/esp32-ps3
         git checkout develop
