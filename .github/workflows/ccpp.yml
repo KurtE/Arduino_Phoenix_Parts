@@ -8,8 +8,8 @@ jobs:
       fail-fast: false
       matrix:
         arduino:
-          - 1.8.9
-#          - 1.8.10
+#          - 1.8.9
+          - 1.8.10
         sketch:
           - Phoenix/AliPhoenix_PS2_Maestro/AliPhoenix_PS2_Maestro.ino
           - Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
