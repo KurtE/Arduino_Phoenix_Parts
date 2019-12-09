@@ -15,7 +15,7 @@ jobs:
           - Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
         board:
           - esp32:esp32:m5stick-c
-          - arduino:arv:leonardo
+          - arduino:avr:leonardo
     env: 
       ARDUINO_VERSION: 1.8.10
     runs-on: ubuntu-latest
