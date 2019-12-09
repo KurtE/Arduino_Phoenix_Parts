@@ -5,7 +5,11 @@
 // Arbotix AX12 and bioloid libraries (which may have been updated)
 //====================================================================
 #include <Arduino.h>
-#include <avr/pgmspace.h>
+#ifdef ESP32
+  #include <pgmspace.h>
+#elif __AVR__
+  #include <avr/pgmspace.h>
+#endif
 
 
 #ifdef c4DOF
