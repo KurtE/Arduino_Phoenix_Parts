@@ -17,13 +17,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <Arduino.h> // Arduino 1.0
+#include <avr/pgmspace.h>
 #include "MaestroEx.h"
-
-#ifdef ESP32
-  #include <pgmspace.h>
-#else
-  #include <avr\pgmspace.h>
-#endif
 
 
 #ifdef c4DOF
