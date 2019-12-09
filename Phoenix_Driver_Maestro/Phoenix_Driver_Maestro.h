@@ -49,7 +49,7 @@ const byte cTarsPin[] PROGMEM = {
 #ifdef ESP32
   MaestroControllerEx maestro = MaestroControllerEx(MAESTROSerial, cMAESTRO_BAUD, cMAESTRO_IN, cMAESTRO_OUT);
 #else
-  MaestroControllerEx maestro = MaestroControllerEx(MAESTROSerial, cMAESTRO_BAUD;
+  MaestroControllerEx maestro = MaestroControllerEx(MAESTROSerial, cMAESTRO_BAUD);
 #endif
 boolean g_fServosFree;    // Are the servos in a free state?
 
