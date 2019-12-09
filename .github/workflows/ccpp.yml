@@ -5,7 +5,6 @@ on: [push, pull_request]
 jobs:
   build:
     strategy:
-      max-parallel: 2
       fail-fast: false
       matrix:
         arduino:
@@ -17,8 +16,6 @@ jobs:
         board:
           - esp32:esp32:m5stick-c
           - arduino:avr:leonardo
-    env: 
-      ARDUINO_VERSION: 1.8.10
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -57,5 +54,5 @@ jobs:
       shell: bash
     - name: Compile project
       run: |
-        ${PWD}/arduino-${{ matrix.arduino }}/arduino --board ${{ matrix.board }} --verify Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC.ino
+        ${PWD}/arduino-${{ matrix.arduino }}/arduino --board ${{ matrix.board }} --verify ${{ matrix.sketch }}
       shell: bash
