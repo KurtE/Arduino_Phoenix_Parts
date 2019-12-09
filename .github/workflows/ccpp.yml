@@ -6,6 +6,7 @@ jobs:
   build:
     strategy:
       max-parallel: 2
+      fail-fast: false
       matrix:
         arduino:
           - 1.8.9
