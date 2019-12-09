@@ -1,6 +1,13 @@
 name: C/C++ CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+      - develop
+      - feature/**
+      - bugfix/**
+
 
 jobs:
   build:
