@@ -1,6 +1,18 @@
 name: C/C++ CI
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+      - feature/**
+      - bugfix/**
+  push:
+    branches:
+      - master
+      - develop
+      - feature/**
+      - bugfix/**
 
 jobs:
   build:
@@ -8,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         arduino:
-#          - 1.8.9
+          - 1.8.9
           - 1.8.10
         sketch:
           - Phoenix/AliPhoenix_PS2_Maestro/AliPhoenix_PS2_Maestro.ino
@@ -16,6 +28,9 @@ jobs:
         board:
           - esp32:esp32:m5stick-c
           - arduino:avr:leonardo
+        exclude:
+          - sketch: Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
+            board: arduino:avr:leonardo
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
