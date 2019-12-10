@@ -27,6 +27,7 @@
  */
 
 #include <inttypes.h>
+#include <SoftwareSerial.h>
 
 /* pose engine runs at 30Hz (33ms between frames) 
    recommended values for interpolateSetup are of the form X*BIOLOID_FRAME_LENGTH - 1 */
@@ -45,16 +46,23 @@ typedef struct{
 class MaestroControllerEx
 {
   public:
-    MaestroControllerEx(HardwareSerial & port, long baud) : port_ (port), baud_ (baud) {
+    bool hwSerial;
+
+    MaestroControllerEx(HardwareSerial * port, long baud) : port_(port), baud_(baud) {
+      hwSerial = true;
       begin();
-      port_.begin(baud_);
     }
-#ifdef ESP32
-    MaestroControllerEx(HardwareSerial & port, long baud, int rxPin, int txPin) : port_(port), baud_(baud), rxPin_(rxPin), txPin_(txPin) {
+    MaestroControllerEx(SoftwareSerial * port, long baud) : port_(port), baud_(baud) {
+      hwSerial = false;
       begin();
-      port_.begin(baud_, SERIAL_8N1, rxPin_, txPin_);
     }
-#endif
+    /**
+     * Specific for ESP32 hardware serial port 2 usage
+     */
+    MaestroControllerEx(HardwareSerial * port, long baud, int rxPin, int txPin) : port_(port), baud_(baud), rxPin_(rxPin), txPin_(txPin) {
+      hwSerial = true;
+      begin();
+    }
     
     void begin();
     void setup(int servo_cnt);
@@ -114,7 +122,7 @@ class MaestroControllerEx
     transition_t * sequence;                      // sequence we are running
     int transitions;                              // how many transitions we have left to load
     
-    HardwareSerial & port_;
+    Stream * port_;
     long baud_;
     int rxPin_;
     int txPin_;

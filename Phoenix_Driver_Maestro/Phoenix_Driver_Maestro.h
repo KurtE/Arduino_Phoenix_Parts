@@ -51,9 +51,9 @@ const byte cTarsPin[] PROGMEM = {
 
 // Declarations from Hex_Cfg.h seen here, but not in MaestroEx files so need to pass it all in to constructor
 #ifdef ESP32
-  MaestroControllerEx maestro = MaestroControllerEx(MAESTROSerial, cMAESTRO_BAUD, cMAESTRO_IN, cMAESTRO_OUT);
+  MaestroControllerEx maestro = MaestroControllerEx(&MAESTROSerial, cMAESTRO_BAUD, cMAESTRO_IN, cMAESTRO_OUT);
 #else
-  MaestroControllerEx maestro = MaestroControllerEx(MAESTROSerial, cMAESTRO_BAUD);
+  MaestroControllerEx maestro = MaestroControllerEx(&MAESTROSerial, cMAESTRO_BAUD);
 #endif
 boolean g_fServosFree;    // Are the servos in a free state?
 

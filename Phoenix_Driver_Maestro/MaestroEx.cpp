@@ -50,6 +50,17 @@ void MaestroControllerEx::begin() {
   interpolating = 0;
   playing = 0;
   nextframe_ = millis();
+
+  if(hwSerial) {
+#ifdef ESP32
+    static_cast<HardwareSerial*>(port_)->begin(baud_, SERIAL_8N1, rxPin_, txPin_);
+#else
+    static_cast<HardwareSerial*>(port_)->begin(baud_);
+#endif
+  }
+  else {
+    static_cast<SoftwareSerial*>(port_)->begin(baud_);
+  }
 }
 
 void MaestroControllerEx::setId(int index, int id){
@@ -84,11 +95,11 @@ int MaestroControllerEx::readPos(int id) {
 	sendBytes[0] = 0x90; // Command byte: Set Target.
 	sendBytes[1] = id; // First data byte holds channel number.
 	
-	port_.print(sendBytes[0]);
-	port_.print(sendBytes[1]);
+	port_->print(sendBytes[0]);
+	port_->print(sendBytes[1]);
 	
-	replyBytes[0] = port_.read();
-	replyBytes[1] = port_.read();
+	replyBytes[0] = port_->read();
+	replyBytes[1] = port_->read();
 	
 	responsePosition = replyBytes[1];          //send x_high to rightmost 8 bits
 	responsePosition = responsePosition << 8;  //shift x_high over to leftmost 8 bits
@@ -139,7 +150,7 @@ void MaestroControllerEx::writePos(int pin, int target){
 	serialBytes[2] = target & 0x7F; // Second byte holds the lower 7 bits of target.
 	serialBytes[3] = (target >> 7) & 0x7F;   // Third data byte holds the bits 7-13 of target.
 
-	port_.write(serialBytes, 4);
+	port_->write(serialBytes, 4);
 }
 
 /**
@@ -164,7 +175,7 @@ void MaestroControllerEx::writeGroup(int startPin, int numServos, unsigned int p
 		j++;
 	}
 	
-	port_.write(serialBytes, numBytes);
+	port_->write(serialBytes, numBytes);
 }
 
 /**
