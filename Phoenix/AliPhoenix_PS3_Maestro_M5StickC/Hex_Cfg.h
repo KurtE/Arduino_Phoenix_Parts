@@ -87,10 +87,7 @@
     #ifdef UBRR1H
       #define MAESTROSerial         Serial1
     #elif defined(ESP32)
-      #define min _min
-      #define max _max
       #define MAESTROSerial         Serial2
-      //HardwareSerial MAESTROSerial(2);
     #else
       SoftwareSerial MAESTROSerial(cMAESTRO_IN, cMAESTRO_OUT);
     #endif
