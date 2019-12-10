@@ -28,6 +28,7 @@ jobs:
         board:
           - esp32:esp32:m5stick-c
           - arduino:avr:leonardo
+          - arduino:avr:nano
         exclude:
           - sketch: Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
             board: arduino:avr:leonardo
