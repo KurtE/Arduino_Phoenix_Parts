@@ -46,6 +46,17 @@
 
 #define cEyesPin 13
 
+
+#define USE_MAESTRO
+
+// Warning I will undefine some components as the non-megas don't have enough memory...
+//#undef OPT_FIND_SERVO_OFFSETS 
+
+#define cMAESTRO_BAUD    115200     //MAESTRO BAUD rate
+#define cMAESTRO_OUT     12         //Output pin for (MAESTRO RX)
+#define cMAESTRO_IN      13         //Input pin for (MAESTRO TX)
+
+
 #ifdef UBRR1H
 #define MAESTROSerial         Serial1
 #elif defined(ESP32)
@@ -97,15 +108,12 @@ SoftwareSerial MAESTROSerial(cMAESTRO_IN, cMAESTRO_OUT);
 //#undef OPT_FIND_SERVO_OFFSETS 
 
 #define cMAESTRO_BAUD         115200   //MAESTRO BAUD rate
+#define cMAESTRO_OUT     12        //Output pin for (MAESTRO RX)
+#define cMAESTRO_IN      13       //Input pin for (MAESTRO TX)
 
 //--------------------------------------------------------------------
 //[Botboarduino Pin Numbers]
 #define SOUND_PIN    5        // Botboarduino JR pin number
-
-#define cSSC_OUT         12      	//Output pin for (SSC RX) on BotBoard (Yellow)
-#define cSSC_IN          13      	//Input pin for (SSC TX) on BotBoard (Blue)
-#define cMAESTRO_OUT     12        //Output pin for (MAESTRO RX)
-#define cMAESTRO_IN      13       //Input pin for (MAESTRO TX)
 
 //====================================================================
 //[MAESTRO PIN NUMBERS]
@@ -318,4 +326,3 @@ extern const byte g_abHexMaxBodyY[] PROGMEM;
 #define cTarsFactorC	50	//4DOF ONLY
 
 #endif CFG_HEX_H
-
