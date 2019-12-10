@@ -32,6 +32,8 @@ jobs:
         exclude:
           - sketch: Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
             board: arduino:avr:leonardo
+          - sketch: Phoenix/AliPhoenix_PS3_Maestro_M5StickC/AliPhoenix_PS3_Maestro_M5StickC
+            board: arduino:avr:nano
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
