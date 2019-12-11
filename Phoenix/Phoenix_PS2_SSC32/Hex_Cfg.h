@@ -39,7 +39,10 @@
 
 #if defined(UBRR1H)
 #define SSCSerial         Serial1
-#else
+#elif defined(ESP32)
+#define min _min
+#define max _max
+#define SSCSerial         Serial2
 #endif
 
 #define USEPS2
@@ -246,6 +249,3 @@
 #define cLFInitPosZ     -CHexInitXZSin60
 
 #endif CFG_HEX_H
-
-
-
