@@ -481,7 +481,7 @@ INCONTROLSTATE   g_InControlState;      // This is our global Input control stat
 // Define our ServoWriter class
 ServoDriver  g_ServoDriver;      // our global servo driver class
 
-boolean         g_fLowVoltageShutdown;    // If set the bot shuts down because the input voltage is to low
+boolean       g_fLowVoltageShutdown;    // If set the bot shuts down because the input voltage is to low
 uint16_t      Voltage;
 
 

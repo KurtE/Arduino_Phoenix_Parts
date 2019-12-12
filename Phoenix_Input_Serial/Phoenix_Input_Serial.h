@@ -266,9 +266,11 @@ void InputController::ControlInput(void)
         if (ControlMode != TRANSLATEMODE )
           ControlMode = TRANSLATEMODE;
         else {
+#ifdef OPT_SINGLELEG
           if (g_InControlState.SelectedLeg==255) 
             ControlMode = WALKMODE;
           else
+#endif
             ControlMode = SINGLELEGMODE;
         }
       }
@@ -279,14 +281,17 @@ void InputController::ControlInput(void)
         if (ControlMode != ROTATEMODE)
           ControlMode = ROTATEMODE;
         else {
+#ifdef OPT_SINGLELEG
           if (g_InControlState.SelectedLeg == 255) 
             ControlMode = WALKMODE;
           else
+#endif
             ControlMode = SINGLELEGMODE;
         }
       }
 
       //Single leg mode fNO
+#ifdef OPT_SINGLELEG
       if (ButtonPressed(SERB_CIRCLE)) {// O - Circle Button Test
         if (abs(g_InControlState.TravelLength.x)<cTravelDeadZone && abs(g_InControlState.TravelLength.z)<cTravelDeadZone 
           && abs(g_InControlState.TravelLength.y*2)<cTravelDeadZone )   {
@@ -301,7 +306,7 @@ void InputController::ControlInput(void)
           }
         }
       }      
-
+#endif
 #ifdef OPT_GPPLAYER
       // GP Player Mode X
       if (ButtonPressed(SERB_CROSS)) { // X - Cross Button Test
@@ -444,6 +449,7 @@ void InputController::ControlInput(void)
       }
 
       //[Single leg functions]
+#ifdef OPT_SINGLELEG
       if (ControlMode == SINGLELEGMODE) {
         //Switch leg for single leg control
         if (ButtonPressed(SERB_SELECT)) { // Select Button Test
@@ -464,7 +470,7 @@ void InputController::ControlInput(void)
           g_InControlState.fSLHold = !g_InControlState.fSLHold;
         }
       }
-
+#endif
 #ifdef OPT_GPPLAYER
       //[GPPlayer functions]
       if (ControlMode == GPPLAYERMODE) {
@@ -553,7 +559,9 @@ void SerTurnRobotOff(void)
   g_InControlState.TravelLength.y = 0;
   g_BodyYOffset = 0;
   g_BodyYShift = 0;
+#ifdef OPT_SINGLELEG
   g_InControlState.SelectedLeg = 255;
+#endif
   g_InControlState.fRobotOn = 0;
   AdjustLegPositionsToBodyHeight();    // Put main workings into main program file
 }
